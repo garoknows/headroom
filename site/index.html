@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Headroom: Claude plan usage on your Mac</title>
+<meta name="description" content="A free, open-source Mac widget that shows how much of your Claude plan's weekly and 5-hour limits you've used, and when they reset. No sign-in, no network, no tokens.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --card: #1F1F1F; --text: #ECECEC; --muted: #9A9A9A; --track: #2E3440;
+    --blue: #3B82F6; --amber: #F59E0B; --red: #EF4444;
+    --page: #151515; --line: #2A2A2A; --link: #7DB0FF;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --page: #F5F5F4; --card: #FFFFFF; --text: #1F1F1F; --muted: #5F5F5F; --track: #E3E6EC; --line: #E2E2E2; --link: #1D5FD1; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 20px 64px; }
+  a { color: var(--link); }
+  header { display: flex; align-items: center; gap: 14px; }
+  header img { width: 52px; height: 52px; }
+  h1 { font-size: 40px; line-height: 1.1; margin: 0; letter-spacing: -0.02em; }
+  .tag { color: var(--muted); margin: 18px 0 28px; font-size: 20px; max-width: 640px; }
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; margin: 32px 0 40px; }
+  @media (max-width: 720px) { .hero { grid-template-columns: 1fr; } h1 { font-size: 32px; } }
+  .widget { background: var(--card); border-radius: 22px; padding: 18px 20px; border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0,0,0,.18); max-width: 380px; }
+  .row { margin-bottom: 16px; }
+  .row .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .label { font-weight: 600; font-size: 15px; }
+  .pct { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  .reset { color: var(--muted); font-size: 13px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--track); margin-top: 8px; overflow: hidden; }
+  .bar span { display: block; height: 100%; border-radius: 4px; background: var(--blue); }
+  .foot { color: var(--muted); font-size: 12px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+  .btn { display: inline-block; padding: 11px 18px; border-radius: 10px; background: var(--blue); color: #fff;
+    text-decoration: none; font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  h2 { font-size: 24px; margin: 44px 0 10px; letter-spacing: -0.01em; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  ol li, ul li { margin-bottom: 6px; }
+  code { font: 14px ui-monospace, "SF Mono", Menlo, monospace; background: var(--card); border: 1px solid var(--line);
+    padding: 1px 6px; border-radius: 6px; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.svg" alt="">
+    <h1>Headroom</h1>
+  </header>
+  <p class="tag">See how much of your Claude plan you've used this week, and when it resets, right in your Mac's Notification Center.</p>
+
+  <div class="hero">
+    <div class="widget" role="img" aria-label="Example widget: current session 23% used, this week 41% used">
+      <div class="row">
+        <div class="top"><span class="label">Current session</span><span class="pct">23% used</span></div>
+        <div class="reset">Resets in 3 hr 12 min</div>
+        <div class="bar"><span style="width:23%"></span></div>
+      </div>
+      <div class="row">
+        <div class="top"><span class="label">This week</span><span class="pct">41% used</span></div>
+        <div class="reset">Resets Monday 1:00 AM</div>
+        <div class="bar"><span style="width:41%"></span></div>
+      </div>
+      <div class="foot">As of 2:41 PM</div>
+    </div>
+    <div>
+      <p>Headroom is a free, open-source widget for people who use <strong>Claude Code</strong> on a Pro, Max or Ultra plan. It shows the same numbers as the usage page in Claude's settings, without opening anything.</p>
+      <div class="cta">
+        <a class="btn" href="https://github.com/garoknows/headroom/releases">Download for Mac</a>
+        <a class="btn ghost" href="https://github.com/garoknows/headroom">Source code</a>
+      </div>
+      <p class="foot" style="margin-top:12px">macOS 14 Sonoma or later. Early preview.</p>
+    </div>
+  </div>
+
+  <h2>Private by design</h2>
+  <div class="grid">
+    <div class="card"><h3>No sign-in</h3><p>Headroom never asks for your Claude account and never reads tokens, passwords or browser cookies.</p></div>
+    <div class="card"><h3>No internet</h3><p>There is no network code in the app or the widget. Your numbers never leave your Mac.</p></div>
+    <div class="card"><h3>Keeps almost nothing</h3><p>Only the percent used, the reset times and when they were updated. No prompts, folders, costs or account details.</p></div>
+  </div>
+
+  <h2>How it works</h2>
+  <p>Every time Claude Code gets a reply, it hands your plan's usage numbers to its <em>status line</em>, a small command you can set up to show information under the prompt. Headroom adds a tiny helper there that saves just those numbers and then runs your existing status line exactly as before.</p>
+  <ol>
+    <li>Install Headroom and open it.</li>
+    <li>Click <strong>Connect to Claude Code</strong>. Headroom backs up your Claude Code settings first, and <strong>Disconnect</strong> puts them back.</li>
+    <li>Add the Headroom widget to Notification Center (click the date and time in the menu bar, then <strong>Edit Widgets</strong>).</li>
+  </ol>
+
+  <h2>Good to know</h2>
+  <ul>
+    <li><strong>Numbers update when Claude Code replies.</strong> Chats on claude.ai or in the Claude app use the same limits, but they show up in Headroom at your next Claude Code reply. The "As of" time tells you how fresh the numbers are, and turns amber after 30 minutes.</li>
+    <li><strong>Reset times are always right,</strong> because Claude Code sends the exact moment each limit resets.</li>
+    <li>Optional alerts when you pass 90% of your weekly limit (or a level you choose), once per week.</li>
+    <li>Optional menu bar item with your weekly percent.</li>
+  </ul>
+
+  <footer>
+    Headroom is an independent open-source project (MIT License). It is not made by, affiliated with or endorsed by Anthropic. "Claude" is used only to describe what Headroom works with.
+  </footer>
+</main>
+</body>
+</html>

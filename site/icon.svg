@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Headroom icon">
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="#1F1F1F"/>
+  <rect x="292" y="214" width="440" height="22" rx="11" fill="#ECECEC"/>
+  <clipPath id="t"><rect x="352" y="282" width="320" height="520" rx="64"/></clipPath>
+  <rect x="352" y="282" width="320" height="520" rx="64" fill="#2E3440"/>
+  <rect x="352" y="528" width="320" height="274" fill="#3B82F6" clip-path="url(#t)"/>
+</svg>
