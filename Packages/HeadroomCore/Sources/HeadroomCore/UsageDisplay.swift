@@ -147,7 +147,7 @@ public enum UsageFormatter {
         let passed: Bool = { if case .passed = reset { return true }; return false }()
         let pct = passed ? nil : wholePercent(l.usedPercent)
         return LimitRow(id: l.id, title: title(for: l.id), usedPercent: passed ? 0 : l.usedPercent, percent: pct,
-                        percentText: pct.map { "\($0)% used" } ?? "Waiting",
+                        percentText: pct.map { (l.outOfRange && l.usedPercent >= 100) ? "100%+ used" : "\($0)% used" } ?? "Waiting",
                         level: passed ? .normal : UsageLevel.of(percent: l.usedPercent),
                         reset: reset, resetText: text, resetTextShort: short, outOfRange: l.outOfRange)
     }

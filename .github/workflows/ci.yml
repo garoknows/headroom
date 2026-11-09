@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Core tests (parser, status line program end to end, settings editor, no-network scan)
+        run: swift test -c release --package-path Packages/HeadroomCore
+
+      - name: Version, cask and picture checks
+        run: |
+          scripts/check-version.sh
+          scripts/test-update-cask.sh
+          python3 scripts/check-image-metadata.py docs/images
+
+      - name: Generate the Xcode project from project.yml
+        run: |
+          PATH="$(scripts/install-xcodegen.sh "$RUNNER_TEMP/xcodegen"):$PATH"
+          xcodegen generate
+
+      - name: Build app, widget and status line program (Release, ad hoc signed)
+        run: |
+          xcodebuild -project Headroom.xcodeproj -scheme Headroom \
+            -configuration Release -destination "generic/platform=macOS" \
+            -derivedDataPath build.nosync/dd build
+
+      - name: Privacy and version checks on the built app
+        run: |
+          APP=build.nosync/dd/Build/Products/Release/Headroom.app
+          find "$APP" -maxdepth 4 -type f | sed "s|$APP/||" | sort
+          scripts/check-privacy.sh "$APP"
+          scripts/check-version.sh "" "$APP"
+
+      - name: The built status line program passes input through unchanged
+        run: |
+          H="$RUNNER_TEMP/home"; mkdir -p "$H"
+          BIN=build.nosync/dd/Build/Products/Release/Headroom.app/Contents/MacOS/headroom-statusline
+          IN=Packages/HeadroomCore/Tests/HeadroomCoreTests/Fixtures/full-payload.json
+          A="$(HOME="$H" "$BIN" --then "$(printf 'shasum -a 256' | base64)" < "$IN")"
+          B="$(shasum -a 256 < "$IN")"
+          [ "$A" = "$B" ] || { echo "pass-through differs: $A vs $B"; exit 1; }
+          test -f "$H/Library/Application Support/io.github.garoknows.headroom/usage.json"
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0   # the secret scan reads every commit
+          persist-credentials: false
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,111 @@
+name: Headroom
+options:
+  bundleIdPrefix: io.github.garoknows
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+
+# The one place the version and build numbers live (lesson 18). Info.plists read them,
+# scripts/build-direct.sh and the release workflow read them, and CI fails if anything disagrees.
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  HeadroomCore:
+    path: Packages/HeadroomCore
+
+targets:
+  # The menu bar helper. Not sandboxed: it must read its own data folder and, only when the
+  # user clicks Connect, edit ~/.claude/settings.json. Hardened runtime, Developer ID signed.
+  Headroom:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources
+      - path: App/Resources
+        buildPhase: resources
+    dependencies:
+      - package: HeadroomCore
+        product: HeadroomCore
+      - package: HeadroomCore
+        product: HeadroomUI
+      - target: HeadroomWidgets
+        embed: true
+        codeSign: true
+      # The status line program ships next to the app's executable (Contents/MacOS).
+      - target: headroom-statusline
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
+    settings:
+      base:
+        PRODUCT_NAME: Headroom
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: $(HEADROOM_APP_ENTITLEMENTS)
+
+  # The widget. Sandboxed (WidgetKit requires it). Reads only the App Group snapshot.
+  HeadroomWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widgets/Sources
+    dependencies:
+      - package: HeadroomCore
+        product: HeadroomCore
+      - package: HeadroomCore
+        product: HeadroomUI
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_NAME: HeadroomWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom.widgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: $(HEADROOM_WIDGET_ENTITLEMENTS)
+        SKIP_INSTALL: YES
+
+  # The command Claude Code runs on every status line update.
+  headroom-statusline:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Packages/HeadroomCore/Sources/headroom-statusline
+    dependencies:
+      - package: HeadroomCore
+        product: HeadroomCore
+    settings:
+      base:
+        PRODUCT_NAME: headroom-statusline
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom.statusline
+        SKIP_INSTALL: YES
+        SWIFT_OPTIMIZATION_LEVEL: -O
+
+schemes:
+  Headroom:
+    build:
+      targets:
+        Headroom: all
+        HeadroomWidgets: all
+        headroom-statusline: all
+    test:
+      targets:
+        - package: HeadroomCore/HeadroomCoreTests
+        - package: HeadroomCore/StatuslineTests
+    archive:
+      config: Release

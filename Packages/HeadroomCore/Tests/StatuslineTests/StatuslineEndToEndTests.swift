@@ -14,7 +14,18 @@ import Testing
             let candidate = b.bundleURL.deletingLastPathComponent().appendingPathComponent("headroom-statusline")
             if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }
         }
-        return nil
+        // Otherwise look in the package's own build folder for the newest copy.
+        let build = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent(".build")
+        let found = FileManager.default.enumerator(at: build, includingPropertiesForKeys: [.contentModificationDateKey])?
+            .compactMap { $0 as? URL }
+            .filter { $0.lastPathComponent == "headroom-statusline" && FileManager.default.isExecutableFile(atPath: $0.path) && !$0.path.contains(".dSYM") }
+            .max { a, b in
+                let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return da < db
+            }
+        return found
     }()
 
     static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
