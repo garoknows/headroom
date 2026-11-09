@@ -63,6 +63,7 @@ struct SetupView: View {
                     Button("Done") {
                         if openAtLogin != model.launchAtLogin { model.setLaunchAtLogin(openAtLogin) }
                         model.setupDone = true
+                        if model.alerts.enabled { model.refreshNotificationPermission() }   // asks macOS once if needed
                         done()
                     }
                     .keyboardShortcut(.defaultAction)

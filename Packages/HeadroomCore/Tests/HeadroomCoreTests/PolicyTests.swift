@@ -27,6 +27,20 @@ import Testing
         #expect(m.updatedAt == now)
     }
 
+    @Test func withinOneWindowUsageNeverGoesDown() {
+        // An idle session redraws its status line with older numbers for the same week.
+        let fresh = snap(-30, [lim("seven_day", 62, reset: 86400)])
+        let idle = snap(0, [lim("seven_day", 55, reset: 86400 + 20)])
+        #expect(SnapshotPolicy.merge(existing: fresh, incoming: idle, now: now).limit("seven_day")?.usedPercent == 62)
+    }
+
+    @Test func aResetMovedEarlierIsAccepted() {
+        // The week now resets on Friday instead of Monday: fresh numbers for the new window win.
+        let old = snap(-60, [lim("seven_day", 80, reset: 4 * 86400)])
+        let moved = snap(0, [lim("seven_day", 3, reset: 86400)])
+        #expect(SnapshotPolicy.merge(existing: old, incoming: moved, now: now).limit("seven_day")?.usedPercent == 3)
+    }
+
     @Test func passedWindowIsKeptUntilNewNumbersArrive() {
         let existing = snap(-7200, [lim("five_hour", 80, reset: -60), lim("seven_day", 30, reset: 86400)])
         let incoming = snap(0, [lim("seven_day", 31, reset: 86400)])

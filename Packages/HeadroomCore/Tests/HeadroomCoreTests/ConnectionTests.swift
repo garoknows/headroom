@@ -13,7 +13,7 @@ import Testing
 
     @Test func connectRefusesFromATemporaryCopyAndChangesNothing() {
         let paths = HeadroomPaths(home: makeTempHome())
-        let c = Connection(settingsURL: paths.claudeSettings,
+        let c = Connection(settingsURL: paths.claudeSettings, backupFolder: paths.backupFolder,
                            executablePath: "/private/var/folders/x/AppTranslocation/A/d/Headroom.app/Contents/Helpers/headroom-statusline")
         if case .done = c.connect() { Issue.record("should refuse") }
         #expect(!FileManager.default.fileExists(atPath: paths.claudeSettings.path))
@@ -27,7 +27,7 @@ import Testing
         try FileManager.default.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("#!/bin/sh\n".utf8).write(to: helper)
         chmod(helper.path, 0o755)
-        let c = Connection(settingsURL: paths.claudeSettings, executablePath: helper.path)
+        let c = Connection(settingsURL: paths.claudeSettings, backupFolder: paths.backupFolder, executablePath: helper.path)
         #expect(c.status() == .noSettingsFile)
         guard case .done = c.connect() else { Issue.record("connect failed"); return }
         #expect(c.status() == .connected(StatuslineCommand(executablePath: helper.path, previous: nil)))
@@ -53,6 +53,32 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: group.appendingPathComponent(AppGroupFiles.snapshotName).path))
         #expect(FileManager.default.fileExists(atPath: group.appendingPathComponent("other.txt").path))
         #expect(FileManager.default.fileExists(atPath: other.path))
+    }
+
+    @Test func staleTempFilesAreSwept() throws {
+        let paths = HeadroomPaths(home: makeTempHome())
+        try SecureFile.ensurePrivateFolder(paths.supportFolder)
+        let old = paths.supportFolder.appendingPathComponent(".usage.json.123.456.tmp")
+        let young = paths.supportFolder.appendingPathComponent(".usage.json.789.1.tmp")
+        let other = paths.supportFolder.appendingPathComponent("keep.tmp")
+        for f in [old, young, other] { try Data("x".utf8).write(to: f) }
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-600)], ofItemAtPath: old.path)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-600)], ofItemAtPath: other.path)
+        SecureFile.removeStaleTempFiles(in: paths.supportFolder, olderThan: 60)
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+        #expect(FileManager.default.fileExists(atPath: young.path))
+        #expect(FileManager.default.fileExists(atPath: other.path))
+    }
+
+    @Test func eraseKeepsSettingsBackups() throws {
+        let paths = HeadroomPaths(home: makeTempHome())
+        try SecureFile.ensurePrivateFolder(paths.backupFolder)
+        let b = paths.backupFolder.appendingPathComponent("settings.json.headroom-backup-1")
+        try Data("{}".utf8).write(to: b)
+        StatuslineRecorder.record(payload: Fixture.data("full-payload.json"), paths: paths, now: Date())
+        DataEraser.eraseAll(paths: paths, appGroupFolder: nil)
+        #expect(!FileManager.default.fileExists(atPath: paths.usageFile.path))
+        #expect(FileManager.default.fileExists(atPath: b.path))
     }
 
     @Test func publishNeverReplacesGoodWithBad() throws {

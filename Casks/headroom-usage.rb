@@ -24,14 +24,10 @@ cask "headroom-usage" do
 
   app "Headroom.app"
 
-  # Put the user's previous Claude Code status line back before the app goes away (lesson 21),
-  # then quit the app.
-  uninstall script: {
-              executable: "#{appdir}/Headroom.app/Contents/MacOS/Headroom",
-              args:       ["--disconnect"],
-              sudo:       false,
-            },
-            quit:   "io.github.garoknows.headroom"
+  # Homebrew runs "uninstall" on upgrades too, so it must not disconnect Headroom from Claude
+  # Code (an upgrade would silently stop the numbers). Removing the app is safe anyway: the
+  # status line setting falls back to the user's previous command when Headroom is gone.
+  uninstall quit: "io.github.garoknows.headroom"
 
   zap trash: [
     "~/Library/Application Scripts/io.github.garoknows.headroom.widgets",

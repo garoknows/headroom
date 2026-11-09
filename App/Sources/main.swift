@@ -6,7 +6,7 @@ import HeadroomCore
 // deleted program. It always exits 0 so an uninstall can't get stuck on it.
 if CommandLine.arguments.contains("--disconnect") {
     let paths = HeadroomPaths.currentUser()
-    let connection = Connection(settingsURL: paths.claudeSettings, executablePath: HelperLocation.executablePath)
+    let connection = Connection(settingsURL: paths.claudeSettings, backupFolder: paths.backupFolder, executablePath: HelperLocation.executablePath)
     if case .connected = connection.status() {
         switch connection.disconnect() {
         case .done(let summary, _): print("Headroom: \(summary)")

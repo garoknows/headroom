@@ -82,7 +82,16 @@ import Testing
         #expect(d.contains(now.addingTimeInterval(6 * 3600 - 5 * 60)))  // dims at 6 hours old
         #expect(d.contains(date(2027, 1, 15, 0, tz: vegas)))             // "today" changes at midnight
         #expect(d.contains(now.addingTimeInterval(15 * 60)))
-        #expect(d.last! <= now.addingTimeInterval(TimelinePlan.horizon) || d.last == reset.addingTimeInterval(1))
+        #expect(d.last! <= now.addingTimeInterval(TimelinePlan.horizon))
+    }
+
+    /// Lesson 11: nothing may sit on screen for days. Entries stop at the horizon, and WidgetKit
+    /// asks for a new timeline then, so "today", "tomorrow" and "as of" are recomputed.
+    @Test func farResetsDoNotStretchTheTimeline() {
+        let now = date(2027, 1, 14, 22, 10, tz: vegas)
+        let s = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 10, resetsAt: now.addingTimeInterval(5 * 86400))])
+        let d = TimelinePlan.dates(for: s, now: now, timeZone: TimeZone(identifier: vegas)!)
+        #expect(d.last! <= now.addingTimeInterval(TimelinePlan.horizon))
     }
 
     @Test func emptyStateStillRefreshes() {

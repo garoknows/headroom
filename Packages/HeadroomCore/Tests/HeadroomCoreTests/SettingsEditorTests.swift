@@ -50,7 +50,7 @@ import Testing
         let end = try #require(out.range(of: "},", range: start.upperBound..<out.endIndex))
         var back = out; back.removeSubrange(start.lowerBound..<end.upperBound)
         #expect(back == original)
-        #expect(try command(out) == "'\(exe)'")
+        #expect(try command(out) == StatuslineCommand(executablePath: exe, previous: nil).commandLine)
         // Disconnect gives back the exact original too.
         let restored = try text(ClaudeSettingsEditor.disconnect(original: Data(out.utf8)))
         #expect(restored == original)
@@ -81,6 +81,18 @@ import Testing
         #expect(try command(try text(ClaudeSettingsEditor.disconnect(original: Data(moved.utf8)))) == "echo hi")
     }
 
+    @Test func disconnectKeepsOptionsTheUserAddedLater() throws {
+        let connected = try text(ClaudeSettingsEditor.connect(original: Data(#"{"model":"opus"}"#.utf8), executablePath: exe))
+        // The user adds padding to the status line Headroom created.
+        let edited = connected.replacingOccurrences(of: #""type": "command","#, with: #""type": "command", "padding": 2,"#)
+        #expect(edited != connected)
+        let out = try text(ClaudeSettingsEditor.disconnect(original: Data(edited.utf8)))
+        let line = try #require((try json(out))["statusLine"] as? [String: Any])
+        #expect(line["padding"] as? Int == 2)
+        #expect(line["command"] as? String == "")
+        #expect((try json(out))["model"] as? String == "opus")
+    }
+
     @Test func compactOneLineFile() throws {
         let original = #"{"model":"opus"}"#
         let out = try text(ClaudeSettingsEditor.connect(original: Data(original.utf8), executablePath: exe))
@@ -91,7 +103,7 @@ import Testing
     @Test func emptyAndBlankFiles() throws {
         for original in ["", "   \n", "{}", "{ }", "\u{FEFF}{}"] {
             let out = try text(ClaudeSettingsEditor.connect(original: Data(original.utf8), executablePath: exe))
-            #expect(try command(out) == "'\(exe)'")
+            #expect(try command(out) == StatuslineCommand(executablePath: exe, previous: nil).commandLine)
             let back = try text(ClaudeSettingsEditor.disconnect(original: Data(out.utf8)))
             #expect(try json(back).isEmpty)
         }
@@ -175,23 +187,27 @@ import Testing
         try original.write(to: paths.claudeSettings)
         chmod(paths.claudeSettings.path, 0o644)
         let now = date(2027, 1, 14, 9, 5, tz: utc)
-        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, now: now) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
+        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder, now: now) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
         guard case .success(let (_, backup)) = r else { Issue.record("\(r)"); return }
         let b = try #require(backup)
+        #expect(b.deletingLastPathComponent() == paths.backupFolder)
+        #expect(SecureFile.permissions(of: paths.backupFolder) == 0o700)
         #expect(b.lastPathComponent.hasPrefix("settings.json.headroom-backup-"))
         #expect(FileManager.default.contents(atPath: b.path) == original)
         #expect(SecureFile.permissions(of: b) == 0o600)
         #expect(SecureFile.permissions(of: paths.claudeSettings) == 0o644)
         let now2 = now.addingTimeInterval(0) // same second: backups must not overwrite each other
-        _ = ClaudeSettingsEditor.apply(at: paths.claudeSettings, now: now2) { ClaudeSettingsEditor.disconnect(original: $0) }
+        _ = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder, now: now2) { ClaudeSettingsEditor.disconnect(original: $0) }
         #expect(FileManager.default.contents(atPath: paths.claudeSettings.path) == original)
-        let names = try FileManager.default.contentsOfDirectory(atPath: paths.claudeSettings.deletingLastPathComponent().path)
+        let names = try FileManager.default.contentsOfDirectory(atPath: paths.backupFolder.path)
         #expect(names.filter { $0.contains("headroom-backup") }.count == 2)
+        // Nothing is left next to the settings file.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: paths.claudeSettings.deletingLastPathComponent().path) == ["settings.json"])
     }
 
     @Test func applyCreatesAMissingFile() throws {
         let paths = HeadroomPaths(home: makeTempHome())
-        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
+        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
         guard case .success(let (_, backup)) = r else { Issue.record("\(r)"); return }
         #expect(backup == nil)
         let data = try #require(FileManager.default.contents(atPath: paths.claudeSettings.path))
@@ -203,7 +219,7 @@ import Testing
         try FileManager.default.createDirectory(at: paths.claudeSettings.deletingLastPathComponent(), withIntermediateDirectories: true)
         let bad = Data("{ \"model\": \"opus\", oops }".utf8)
         try bad.write(to: paths.claudeSettings)
-        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
+        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
         if case .success = r { Issue.record("should have refused") }
         #expect(FileManager.default.contents(atPath: paths.claudeSettings.path) == bad)
         let names = try FileManager.default.contentsOfDirectory(atPath: paths.claudeSettings.deletingLastPathComponent().path)
@@ -214,7 +230,7 @@ import Testing
         let paths = HeadroomPaths(home: makeTempHome())
         try FileManager.default.createDirectory(at: paths.claudeSettings.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: paths.claudeSettings)
-        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings) { original in
+        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder) { original in
             // Another program saves the file while Headroom is preparing its change.
             try? Data(#"{"model":"changed"}"#.utf8).write(to: paths.claudeSettings)
             return ClaudeSettingsEditor.connect(original: original, executablePath: exe)
@@ -232,8 +248,10 @@ import Testing
         let real = dotfiles.appendingPathComponent("claude-settings.json")
         try Data(#"{"model":"opus"}"#.utf8).write(to: real)
         try FileManager.default.createSymbolicLink(at: paths.claudeSettings, withDestinationURL: real)
-        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
+        let r = ClaudeSettingsEditor.apply(at: paths.claudeSettings, backupFolder: paths.backupFolder) { ClaudeSettingsEditor.connect(original: $0, executablePath: exe) }
         guard case .success = r else { Issue.record("\(r)"); return }
+        // The backup (a full copy of the settings) never lands in the dotfiles folder.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dotfiles.path) == ["claude-settings.json"])
         let attrs = try FileManager.default.attributesOfItem(atPath: paths.claudeSettings.path)
         #expect(attrs[.type] as? FileAttributeType == .typeSymbolicLink)
         let data = try #require(FileManager.default.contents(atPath: real.path))

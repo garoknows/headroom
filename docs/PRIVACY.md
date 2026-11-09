@@ -9,6 +9,7 @@ Headroom is built to know as little as possible.
 | Percent used of each limit, when each resets, the limit's name (like `seven_day`), and when the numbers arrived | `~/Library/Application Support/io.github.garoknows.headroom/usage.json` | Only your user account (file permissions 0600, folder 0700) |
 | A copy of the same numbers for the widget | Headroom's shared container (`~/Library/Group Containers/…io.github.garoknows.headroom/snapshot.json`) | Only your user account |
 | Your choices (alerts, menu bar, setup done) | Headroom's preferences | Only your user account |
+| Backups of `~/.claude/settings.json`, made before each Connect or Disconnect | `~/Library/Application Support/io.github.garoknows.headroom/settings-backups/` | Only your user account |
 
 Example of everything in the numbers file:
 
@@ -32,14 +33,14 @@ There is no network code in the app, the widget or the helper. An automated test
 
 Headroom edits `~/.claude/settings.json` only when you click **Connect** or **Disconnect** (or **Delete All Headroom Data**, which disconnects). Each time it:
 
-- saves a backup next to the file first,
+- saves a backup first, in Headroom's own private folder (never next to the file, so it can't land in a dotfiles repository),
 - changes only the `statusLine` setting and leaves every other character as you wrote it,
 - reads the result back and checks it before saving, and
 - changes nothing at all if the file can't be read safely, and tells you why.
 
 ## Deleting your data
 
-**Settings > Delete All Headroom Data** disconnects from Claude Code, deletes both numbers files and resets Headroom's preferences. Backups of your Claude Code settings are your own settings, so they're kept.
+**Settings > Delete All Headroom Data** disconnects from Claude Code, deletes both numbers files and resets Headroom's preferences. Backups of your Claude Code settings are your own settings, so they're kept in `settings-backups/`; delete that folder yourself if you don't want them.
 
 ## Questions
 

@@ -8,8 +8,10 @@ public enum SnapshotPolicy {
 
     /// Combines what is already on disk with a new update.
     /// - The newest update time wins (two Claude Code sessions can write at nearly the same time).
-    /// - For one limit, the later reset time wins: a session holding numbers from an older
-    ///   window never replaces numbers from the current one.
+    /// - Within one window (same reset time), usage never goes down: an idle session redrawing
+    ///   its status line with older numbers can't lower the percent.
+    /// - Numbers from a window whose reset already passed never replace a current window.
+    ///   A reset that moved earlier (but is still ahead) is accepted.
     /// - A limit missing from the update is kept only if its reset has already passed
     ///   (Claude Code drops a window once it resets), so the reset-passed state can show.
     public static func merge(existing: UsageSnapshot?, incoming: UsageSnapshot, now: Date) -> UsageSnapshot {
@@ -17,8 +19,14 @@ public enum SnapshotPolicy {
         if existing.updatedAt > incoming.updatedAt { return existing }
         var result: [LimitWindow] = []
         for new in incoming.limits {
-            if let old = existing.limit(new.id), let oldReset = old.resetsAt, let newReset = new.resetsAt,
-               oldReset.timeIntervalSince(newReset) > 60 {
+            guard let old = existing.limit(new.id), let oldReset = old.resetsAt, let newReset = new.resetsAt else {
+                result.append(new); continue
+            }
+            if abs(oldReset.timeIntervalSince(newReset)) <= 60 {
+                var merged = new
+                if old.usedPercent > new.usedPercent { merged.usedPercent = old.usedPercent; merged.outOfRange = old.outOfRange }
+                result.append(merged)
+            } else if newReset <= now && oldReset > newReset {
                 result.append(old)
             } else {
                 result.append(new)

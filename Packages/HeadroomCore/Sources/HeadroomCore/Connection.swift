@@ -3,11 +3,14 @@ import Foundation
 /// Connect and Disconnect as the app uses them: checks first, then the settings editor.
 public struct Connection: Sendable {
     public var settingsURL: URL
+    /// Where backups of the settings file go (Headroom's own private folder).
+    public var backupFolder: URL
     /// The status line program inside the app, e.g. /Applications/Headroom.app/Contents/Helpers/headroom-statusline.
     public var executablePath: String
 
-    public init(settingsURL: URL, executablePath: String) {
+    public init(settingsURL: URL, backupFolder: URL, executablePath: String) {
         self.settingsURL = settingsURL
+        self.backupFolder = backupFolder
         self.executablePath = executablePath
     }
 
@@ -45,14 +48,14 @@ public struct Connection: Sendable {
         // Lesson 8: the location and the program are checked at the moment of the click.
         if let problem = Self.locationProblem(executablePath: executablePath) { return .refused(problem) }
         let path = executablePath
-        switch ClaudeSettingsEditor.apply(at: settingsURL, now: now, { ClaudeSettingsEditor.connect(original: $0, executablePath: path) }) {
+        switch ClaudeSettingsEditor.apply(at: settingsURL, backupFolder: backupFolder, now: now, { ClaudeSettingsEditor.connect(original: $0, executablePath: path) }) {
         case .success(let (change, backup)): return .done(summary: change.summary, backup: backup)
         case .failure(let r): return .refused(r.message)
         }
     }
 
     public func disconnect(now: Date = Date()) -> Outcome {
-        switch ClaudeSettingsEditor.apply(at: settingsURL, now: now, { ClaudeSettingsEditor.disconnect(original: $0) }) {
+        switch ClaudeSettingsEditor.apply(at: settingsURL, backupFolder: backupFolder, now: now, { ClaudeSettingsEditor.disconnect(original: $0) }) {
         case .success(let (change, backup)): return .done(summary: change.summary, backup: backup)
         case .failure(let r): return .refused(r.message)
         }
@@ -66,7 +69,14 @@ public enum DataEraser {
     public static func eraseAll(paths: HeadroomPaths, appGroupFolder: URL?, extraFiles: [URL] = []) -> [String] {
         var problems: [String] = []
         let fm = FileManager.default
-        var targets = [paths.supportFolder]
+        var targets: [URL]
+        if fm.fileExists(atPath: paths.backupFolder.path) {
+            // Everything in Headroom's folder except the settings backups.
+            let names = (try? fm.contentsOfDirectory(atPath: paths.supportFolder.path)) ?? []
+            targets = names.filter { $0 != paths.backupFolder.lastPathComponent }.map { paths.supportFolder.appendingPathComponent($0) }
+        } else {
+            targets = [paths.supportFolder]
+        }
         if let g = appGroupFolder { targets.append(g.appendingPathComponent(AppGroupFiles.snapshotName)) }
         targets += extraFiles
         for t in targets where fm.fileExists(atPath: t.path) || (try? fm.destinationOfSymbolicLink(atPath: t.path)) != nil {

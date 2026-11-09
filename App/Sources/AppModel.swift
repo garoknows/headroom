@@ -51,7 +51,7 @@ final class AppModel: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.setupDone) }
     }
 
-    var connectionHelper: Connection { Connection(settingsURL: paths.claudeSettings, executablePath: HelperLocation.executablePath) }
+    var connectionHelper: Connection { Connection(settingsURL: paths.claudeSettings, backupFolder: paths.backupFolder, executablePath: HelperLocation.executablePath) }
 
     func start() {
         let w = UsageWatcher(folder: paths.supportFolder)
@@ -74,6 +74,8 @@ final class AppModel: ObservableObject {
     /// Reads the status line program's file, keeps the best good data, hands it to the widget.
     func refresh() {
         now = Date()
+        // Temp files a cancelled status line run left behind.
+        SecureFile.removeStaleTempFiles(in: paths.supportFolder, olderThan: 60)
         let fromScript = SecureFile.readSmallFile(paths.usageFile).flatMap(UsageSnapshot.decode)
         let fromGroup = groupFolder.flatMap { AppGroupFiles.readSnapshot(in: $0, now: now) }
         // Never replace good data with bad or older data (lesson 12).
@@ -140,7 +142,10 @@ final class AppModel: ObservableObject {
         if alerts.enabled && notificationsAllowed == nil { requestNotificationPermission() }
     }
 
+    /// Alerts are only planned (and recorded as sent) when macOS will actually show them, so a
+    /// week's alert isn't marked as sent while notifications are still off.
     func evaluateAlerts() {
+        guard notificationsAllowed == true else { return }
         let record = defaults.data(forKey: Keys.alertRecord).flatMap { try? JSONDecoder().decode(AlertRecord.self, from: $0) } ?? AlertRecord()
         let result = AlertPlanner.evaluate(snapshot: snapshot, settings: alerts, record: record, now: Date())
         if result.record != record, let d = try? JSONEncoder().encode(result.record) { defaults.set(d, forKey: Keys.alertRecord) }
@@ -155,7 +160,10 @@ final class AppModel: ObservableObject {
 
     func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            Task { @MainActor in self.notificationsAllowed = granted }
+            Task { @MainActor in
+                self.notificationsAllowed = granted
+                self.evaluateAlerts()
+            }
         }
     }
 
@@ -164,6 +172,12 @@ final class AppModel: ObservableObject {
             let status = settings.authorizationStatus
             Task { @MainActor in
                 self.notificationsAllowed = status == .notDetermined ? nil : (status == .authorized || status == .provisional)
+                if status == .notDetermined && self.alerts.enabled && self.setupDone {
+                    // Alerts are on by default, so ask once even if the toggle was never touched.
+                    self.requestNotificationPermission()
+                } else {
+                    self.evaluateAlerts()
+                }
             }
         }
     }

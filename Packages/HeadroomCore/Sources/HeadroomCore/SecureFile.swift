@@ -26,6 +26,7 @@ public struct HeadroomPaths: Sendable {
     /// The numbers the status line script writes. Only `rate_limits` and the time.
     public var usageFile: URL { supportFolder.appendingPathComponent("usage.json") }
     public var lockFile: URL { supportFolder.appendingPathComponent(".usage.lock") }
+    public var backupFolder: URL { supportFolder.appendingPathComponent("settings-backups", isDirectory: true) }
     /// Claude Code's user settings file.
     public var claudeSettings: URL { home.appendingPathComponent(".claude/settings.json") }
 }
@@ -103,6 +104,19 @@ public enum SecureFile {
             if flock(fd, LOCK_EX | LOCK_NB) == 0 { return fd }
             if Date() >= deadline { close(fd); return nil }
             usleep(1000)
+        }
+    }
+
+    /// Removes temp files a cancelled write left behind (Claude Code stops the status line
+    /// program if a newer update arrives, which can happen between writing and renaming).
+    /// Only Headroom's own ".usage.json.<pid>.<random>.tmp" names, and only old ones.
+    public static func removeStaleTempFiles(in folder: URL, olderThan age: TimeInterval, now: Date = Date()) {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return }
+        for name in names where name.hasPrefix(".usage.json.") && name.hasSuffix(".tmp") {
+            let path = folder.appendingPathComponent(name).path
+            var st = stat()
+            guard lstat(path, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else { continue }
+            if now.timeIntervalSince1970 - Double(st.st_mtimespec.tv_sec) > age { unlink(path) }
         }
     }
 

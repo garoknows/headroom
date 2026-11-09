@@ -6,8 +6,8 @@ public enum TimelinePlan {
     public static let horizon: TimeInterval = Freshness.veryStaleAfter + step
 
     /// Now; every 15 minutes up to just past the 6-hour "very stale" point; one second after each
-    /// reset (so the row switches to "Reset at…"); and each local midnight in that span (so
-    /// "today" and "tomorrow" stay right). Sorted, no duplicates.
+    /// reset in that span (so the row switches to "Reset at…"); and each local midnight in that
+    /// span (so "today" and "tomorrow" stay right). Sorted, no duplicates.
     public static func dates(for snapshot: UsageSnapshot?, now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> [Date] {
         var out: [Date] = [now]
         var t = now.addingTimeInterval(step)
@@ -31,6 +31,8 @@ public enum TimelinePlan {
             day = cal.startOfDay(for: next)
             if day > now && day <= end { out.append(day) }
         }
-        return Array(Set(out)).sorted()
+        // Nothing past the horizon: at the last entry WidgetKit asks for a fresh timeline, so no
+        // text ("today", "as of") can sit on screen for days waiting for a far-off reset.
+        return Array(Set(out.filter { $0 <= end })).sorted()
     }
 }

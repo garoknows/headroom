@@ -134,7 +134,13 @@ public enum ClaudeSettingsEditor {
             return verify(original: original, new: Data(out), expectedCommand: previous,
                           summary: "Disconnected. Your previous status line is back.")
         }
-        // Headroom added the whole statusLine setting, so remove it.
+        // Headroom added the statusLine setting. If the user has since added options to it (like
+        // padding), keep them and only empty the command; otherwise remove the whole setting.
+        if line.node.members.contains(where: { $0.key != "type" && $0.key != "command" }) {
+            out.replaceSubrange(cmdNode.range, with: Array("\"\"".utf8))
+            return verify(original: original, new: Data(out), expectedCommand: "",
+                          summary: "Disconnected. Your status line options are kept, with no command.")
+        }
         let members = doc.root.members
         guard let idx = members.firstIndex(where: { $0.key == "statusLine" }) else { return .failure(.notConnected) }
         let m = members[idx]
@@ -169,8 +175,11 @@ public enum ClaudeSettingsEditor {
     // MARK: Files (the only part that touches the disk)
 
     /// Connects or disconnects on the real file at `url`: backup, re-check, atomic replace.
+    /// Backups go into `backupFolder` (Headroom's own private folder), never next to the file:
+    /// a settings file linked into a dotfiles repository must not get a full copy (which can hold
+    /// API keys in "env") dropped beside it, where a later commit could publish it.
     /// Returns the change made and the backup's location.
-    public static func apply(at url: URL, now: Date = Date(),
+    public static func apply(at url: URL, backupFolder: URL, now: Date = Date(),
                              _ transform: (Data?) -> Result<Change, Refusal>) -> Result<(Change, URL?), Refusal> {
         let target = resolvedTarget(url)
         let before: Data?
@@ -187,7 +196,8 @@ public enum ClaudeSettingsEditor {
                                                         attributes: [.posixPermissions: 0o700])
             }
             if let before {
-                let b = backupURL(for: target, now: now)
+                try SecureFile.ensurePrivateFolder(backupFolder)
+                let b = backupURL(in: backupFolder, now: now)
                 try SecureFile.atomicWrite(before, to: b, mode: 0o600)
                 backup = b
             }
@@ -223,16 +233,15 @@ public enum ClaudeSettingsEditor {
         return url.resolvingSymlinksInPath()
     }
 
-    static func backupURL(for url: URL, now: Date) -> URL {
+    static func backupURL(in dir: URL, now: Date) -> URL {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyyMMdd-HHmmss"
         let stamp = f.string(from: now)
-        let dir = url.deletingLastPathComponent()
-        var candidate = dir.appendingPathComponent("\(url.lastPathComponent).headroom-backup-\(stamp)")
+        var candidate = dir.appendingPathComponent("settings.json.headroom-backup-\(stamp)")
         var n = 2
         while FileManager.default.fileExists(atPath: candidate.path) {
-            candidate = dir.appendingPathComponent("\(url.lastPathComponent).headroom-backup-\(stamp)-\(n)")
+            candidate = dir.appendingPathComponent("settings.json.headroom-backup-\(stamp)-\(n)")
             n += 1
         }
         return candidate

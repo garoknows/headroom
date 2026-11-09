@@ -46,10 +46,21 @@ func startPrevious(_ command: String) -> (pid: pid_t, stdinWrite: Int32)? {
     posix_spawn_file_actions_adddup2(&actions, fds[0], 0)
     posix_spawn_file_actions_addclose(&actions, fds[0])
     posix_spawn_file_actions_addclose(&actions, fds[1])
+    // The previous command must start exactly as Claude Code would start it: with every signal
+    // at its default. Headroom ignores SIGPIPE for itself, and an ignored signal would otherwise
+    // be inherited (then `yes | head -1` would print "Broken pipe" errors and change exit codes).
+    var attr: posix_spawnattr_t?
+    posix_spawnattr_init(&attr)
+    defer { posix_spawnattr_destroy(&attr) }
+    var defaults = sigset_t([SIGPIPE, SIGTERM, SIGINT, SIGHUP].reduce(UInt32(0)) { $0 | (1 << UInt32($1 - 1)) })
+    var noMask = sigset_t(0)
+    posix_spawnattr_setsigdefault(&attr, &defaults)
+    posix_spawnattr_setsigmask(&attr, &noMask)
+    posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
     var pid: pid_t = 0
     let argv: [UnsafeMutablePointer<CChar>?] = [strdup("/bin/sh"), strdup("-c"), strdup(command), nil]
     defer { argv.forEach { free($0) } }
-    let rc = posix_spawn(&pid, "/bin/sh", &actions, nil, argv, environ)
+    let rc = posix_spawn(&pid, "/bin/sh", &actions, &attr, argv, environ)
     close(fds[0])
     guard rc == 0 else { close(fds[1]); return nil }
     return (pid, fds[1])

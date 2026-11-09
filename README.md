@@ -60,7 +60,7 @@ A Homebrew cask (`headroom-usage`) will follow once a signed release has been ch
 1. Open Headroom's Settings and click **Disconnect** (or **Delete All Headroom Data**, which also disconnects). Your previous status line comes back.
 2. Click **Quit Headroom** at the bottom of Settings, then drag Headroom to the Trash.
 
-If you delete the app without disconnecting, Claude Code's status line goes blank. To fix that, reinstall and disconnect, or restore the backup Headroom made next to your settings (`~/.claude/settings.json.headroom-backup-…`).
+If you delete the app without disconnecting, your previous status line keeps working: the setting Headroom wrote runs it directly when Headroom is gone. Disconnecting is still the tidy way, because it removes Headroom's entry from your settings. Backups of your settings are in `~/Library/Application Support/io.github.garoknows.headroom/settings-backups/`.
 
 ## Privacy
 

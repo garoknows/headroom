@@ -113,6 +113,8 @@ import Testing
         "echo 'to stderr' >&2; echo out",
         "exit 0",
         "true | false",
+        "yes | head -1",
+        "set -o pipefail; yes | head -2; echo \"exit=$?\"",
     ])
     func passThroughIsIdentical(previous: String) throws {
         let home = Self.tempHome()
@@ -124,6 +126,28 @@ import Testing
         #expect(with.status == without.status)
         // ...and the numbers were still saved, even when the previous command failed.
         #expect(FileManager.default.fileExists(atPath: Self.usageFile(home).path))
+    }
+
+    /// If Headroom is deleted without disconnecting, the saved command falls back to running
+    /// the previous status line by itself, so Claude Code still shows it.
+    @Test func commandFallsBackWhenHeadroomIsGone() throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        let previous = "printf 'mine: %s\\n' \"$(wc -c | tr -d ' ')\""
+        let gone = StatuslineCommand(executablePath: "/nonexistent/Headroom.app/Contents/MacOS/headroom-statusline", previous: previous)
+        let viaFallback = try Self.direct(gone.commandLine, input: input, home: home)
+        let alone = try Self.direct(previous, input: input, home: home)
+        #expect(viaFallback.out == alone.out && viaFallback.status == alone.status)
+        #expect(!viaFallback.out.isEmpty)
+        // And with Headroom present, the same command line runs Headroom (which saves numbers).
+        let bin = try #require(Self.binary)
+        let present = StatuslineCommand(executablePath: bin.path, previous: previous)
+        let viaHeadroom = try Self.direct(present.commandLine, input: input, home: home)
+        #expect(viaHeadroom.out == alone.out)
+        #expect(FileManager.default.fileExists(atPath: Self.usageFile(home).path))
+        // No previous command and no Headroom: nothing printed, no error.
+        let bare = try Self.direct(StatuslineCommand(executablePath: "/nonexistent/headroom-statusline", previous: nil).commandLine, input: input, home: home)
+        #expect(bare.out.isEmpty && bare.err.isEmpty && bare.status == 0)
     }
 
     @Test func numbersAreSavedBeforeASlowStatusLineFinishes() throws {

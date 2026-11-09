@@ -14,7 +14,7 @@ Headroom has no Dock icon. It runs quietly in the background. To get back to it 
 
 In the setup window (or Settings), click **Connect to Claude Code**.
 
-What this does: it adds Headroom's small helper to the `statusLine` setting in `~/.claude/settings.json`. It changes nothing else in that file, and saves a backup first (`settings.json.headroom-backup-<date>` in the same folder). If you already had a status line, Headroom runs it after saving the numbers, so it looks exactly the same.
+What this does: it adds Headroom's small helper to the `statusLine` setting in `~/.claude/settings.json`. It changes nothing else in that file, and saves a backup first, in Headroom's own private folder (`~/Library/Application Support/io.github.garoknows.headroom/settings-backups/`), not next to your settings, so a backup can never end up in a dotfiles repository. If you already had a status line, Headroom runs it after saving the numbers, so it looks exactly the same.
 
 Then send any message in Claude Code. The numbers arrive with its reply.
 
@@ -64,4 +64,4 @@ In Headroom's Settings:
 1. In Headroom's Settings, click **Disconnect** (your previous status line comes back), or **Delete All Headroom Data** (also disconnects).
 2. Click **Quit Headroom** at the bottom of Settings, then drag Headroom to the Trash.
 
-Using Homebrew? `brew uninstall --cask headroom-usage` disconnects for you, and `--zap` also removes Headroom's files.
+Using Homebrew? `brew uninstall --cask headroom-usage` removes the app (your previous status line keeps working even if you skip step 1), and `--zap` also removes Headroom's files.
