@@ -51,16 +51,23 @@ import Testing
         env["COLUMNS"] = "97"
         for (k, v) in extraEnv { env[k] = v }
         p.environment = env
-        let inPipe = Pipe(), outPipe = Pipe(), errPipe = Pipe()
-        p.standardInput = inPipe; p.standardOutput = outPipe; p.standardError = errPipe
+        // Input comes from a file, not a pipe. When tests start several programs at once, a pipe's
+        // writing end can be inherited by a sibling process, and then nobody ever sees the end of
+        // the input: the programs wait on each other forever (this hung CI once).
+        let inFile = home.appendingPathComponent("stdin-\(UUID().uuidString).json")
+        try input.write(to: inFile)
+        let inHandle = try FileHandle(forReadingFrom: inFile)
+        defer { try? inHandle.close(); try? FileManager.default.removeItem(at: inFile) }
+        let outPipe = Pipe(), errPipe = Pipe()
+        p.standardInput = inHandle; p.standardOutput = outPipe; p.standardError = errPipe
         let start = DispatchTime.now()
         try p.run()
-        DispatchQueue.global().async {
-            try? inPipe.fileHandleForWriting.write(contentsOf: input)
-            try? inPipe.fileHandleForWriting.close()
-        }
+        // Read the error stream on another thread so a full buffer can't block the program.
+        nonisolated(unsafe) var err = Data()
+        let errDone = DispatchSemaphore(value: 0)
+        Thread { err = errPipe.fileHandleForReading.readDataToEndOfFile(); errDone.signal() }.start()
         let out = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let err = errPipe.fileHandleForReading.readDataToEndOfFile()
+        errDone.wait()
         p.waitUntilExit()
         let secs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1e9
         return Run(out: out, err: err, status: p.terminationStatus, seconds: secs)

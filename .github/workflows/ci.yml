@@ -28,6 +28,7 @@ jobs:
           swift --version
 
       - name: Core tests (parser, status line program end to end, settings editor, no-network scan)
+        timeout-minutes: 15
         run: swift test -c release --package-path Packages/HeadroomCore
 
       - name: Version, cask and picture checks

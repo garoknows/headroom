@@ -63,6 +63,7 @@ jobs:
           echo "$BIN" >> "$GITHUB_PATH"
 
       - name: Tests
+        timeout-minutes: 15
         run: swift test -c release --package-path Packages/HeadroomCore
 
       - name: Picture metadata check (lesson 4)
