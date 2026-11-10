@@ -7,8 +7,8 @@ DEVELOPMENT_TEAM =
 OTHER_CODE_SIGN_FLAGS = --timestamp=none
 
 // Unsigned builds have no App Group, so the widget shows "install the signed release".
-HEADROOM_APP_GROUP =
-HEADROOM_APP_ENTITLEMENTS = App/Headroom.entitlements
-HEADROOM_WIDGET_ENTITLEMENTS = Widgets/HeadroomWidgets.entitlements
+WIGGLEROOM_APP_GROUP =
+WIGGLEROOM_APP_ENTITLEMENTS = App/Wiggleroom.entitlements
+WIGGLEROOM_WIDGET_ENTITLEMENTS = Widgets/WiggleroomWidgets.entitlements
 
 #include? "Signing.xcconfig"

@@ -18,14 +18,14 @@ for p in App/Info.plist Widgets/Info.plist; do
   S=$(plutil -extract CFBundleShortVersionString raw "$ROOT/$p"); N=$(plutil -extract CFBundleVersion raw "$ROOT/$p")
   [ "$S" = '$(MARKETING_VERSION)' ] && [ "$N" = '$(CURRENT_PROJECT_VERSION)' ] && pass "$p reads the version from project.yml" || bad "$p has its own version ($S / $N)"
 done
-C=$(sed -n 's/^ *version "\(.*\)"/\1/p' "$ROOT/Casks/headroom-usage.rb")
-[ "$C" = "$V" ] && pass "Casks/headroom-usage.rb: version $C" || bad "Cask version $C differs from $V"
-grep -q "^# Headroom $V\$" "$ROOT/docs/RELEASE_NOTES.md" && pass "docs/RELEASE_NOTES.md is for $V" || bad "docs/RELEASE_NOTES.md doesn't start with '# Headroom $V'"
+C=$(sed -n 's/^ *version "\(.*\)"/\1/p' "$ROOT/Casks/wiggleroom.rb")
+[ "$C" = "$V" ] && pass "Casks/wiggleroom.rb: version $C" || bad "Cask version $C differs from $V"
+grep -q "^# Wiggleroom $V\$" "$ROOT/docs/RELEASE_NOTES.md" && pass "docs/RELEASE_NOTES.md is for $V" || bad "docs/RELEASE_NOTES.md doesn't start with '# Wiggleroom $V'"
 if [ -n "$TAG" ]; then
   [ "${TAG#v}" = "$V" ] && pass "Tag $TAG matches" || bad "Tag $TAG doesn't match project.yml version $V"
 fi
 if [ -n "$APP" ]; then
-  for P in "$APP/Contents/Info.plist" "$APP/Contents/PlugIns/HeadroomWidgets.appex/Contents/Info.plist"; do
+  for P in "$APP/Contents/Info.plist" "$APP/Contents/PlugIns/WiggleroomWidgets.appex/Contents/Info.plist"; do
     S=$(plutil -extract CFBundleShortVersionString raw "$P"); N=$(plutil -extract CFBundleVersion raw "$P")
     [ "$S" = "$V" ] && [ "$N" = "$B" ] && pass "$(basename "$(dirname "$(dirname "$P")")"): $S ($N)" || bad "$P says $S ($N), expected $V ($B)"
   done

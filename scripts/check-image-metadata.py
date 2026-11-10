@@ -2,7 +2,7 @@
 """Fails if any PNG under the given folders carries text or EXIF metadata (lesson 4).
 
 PNG files can hide a title, author, software name or file path in tEXt, iTXt, zTXt, eXIf or
-iCCP-name chunks. Headroom's pictures must carry none of that.
+iCCP-name chunks. Wiggleroom's pictures must carry none of that.
 Usage: scripts/check-image-metadata.py docs/images site [more folders]
 """
 import os, struct, sys

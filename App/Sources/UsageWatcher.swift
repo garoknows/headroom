@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
-import HeadroomCore
+import WiggleroomCore
 
-/// Watches Headroom's data folder for the status line program's writes, using file system
+/// Watches Wiggleroom's data folder for the status line program's writes, using file system
 /// events (no polling loop). It checks its own health every minute and after sleep, wake and
 /// user switching, and re-arms itself if anything went wrong (lesson 13). `state` is the real
 /// state, so the UI only says "Watching" when it really is.
@@ -51,11 +51,11 @@ final class UsageWatcher {
         do {
             try SecureFile.ensurePrivateFolder(folder)
         } catch {
-            state = .problem("Headroom can't create its data folder.")
+            state = .problem("Wiggleroom can't create its data folder.")
             return
         }
         let fd = open(folder.path, O_EVTONLY)
-        guard fd >= 0 else { state = .problem("Headroom can't watch its data folder."); return }
+        guard fd >= 0 else { state = .problem("Wiggleroom can't watch its data folder."); return }
         var st = stat()
         fstat(fd, &st)
         watchedInode = st.st_ino

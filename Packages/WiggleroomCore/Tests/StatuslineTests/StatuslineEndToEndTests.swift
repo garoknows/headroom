@@ -1,0 +1,319 @@
+import Darwin
+import Foundation
+import WiggleroomCore
+import Testing
+
+/// Runs the real `wiggleroom-statusline` program the way Claude Code does: JSON on standard input,
+/// the output read back from standard output. Each test uses its own temp home folder.
+@Suite(.serialized) struct StatuslineEndToEndTests {
+
+    static let binary: URL? = {
+        if let p = ProcessInfo.processInfo.environment["WIGGLEROOM_STATUSLINE_BIN"] { return URL(fileURLWithPath: p) }
+        // `swift test`: the program sits next to the test bundle in the build folder.
+        for b in Bundle.allBundles where b.bundleURL.pathExtension == "xctest" {
+            let candidate = b.bundleURL.deletingLastPathComponent().appendingPathComponent("wiggleroom-statusline")
+            if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }
+        }
+        // Otherwise look in the package's own build folder for the newest copy.
+        let build = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent(".build")
+        let found = FileManager.default.enumerator(at: build, includingPropertiesForKeys: [.contentModificationDateKey])?
+            .compactMap { $0 as? URL }
+            .filter { $0.lastPathComponent == "wiggleroom-statusline" && FileManager.default.isExecutableFile(atPath: $0.path) && !$0.path.contains(".dSYM") }
+            .max { a, b in
+                let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return da < db
+            }
+        return found
+    }()
+
+    static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent("WiggleroomCoreTests/Fixtures")
+    static func fixture(_ name: String) -> Data { FileManager.default.contents(atPath: fixtures.appendingPathComponent(name).path)! }
+
+    static func tempHome() -> URL {
+        let root = ProcessInfo.processInfo.environment["WIGGLEROOM_TEST_TMP"] ?? NSTemporaryDirectory()
+        let u = URL(fileURLWithPath: root).appendingPathComponent("wr-e2e-\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: u, withIntermediateDirectories: true)
+        return u
+    }
+
+    struct Run { var out: Data; var err: Data; var status: Int32; var seconds: Double }
+
+    /// Runs `executable args` with `input` on stdin and HOME set to `home`.
+    static func run(_ executable: String, _ args: [String], input: Data, home: URL, extraEnv: [String: String] = [:]) throws -> Run {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: executable)
+        p.arguments = args
+        var env = ProcessInfo.processInfo.environment
+        env["HOME"] = home.path
+        env["COLUMNS"] = "97"
+        for (k, v) in extraEnv { env[k] = v }
+        p.environment = env
+        // Input comes from a file, not a pipe. When tests start several programs at once, a pipe's
+        // writing end can be inherited by a sibling process, and then nobody ever sees the end of
+        // the input: the programs wait on each other forever (this hung CI once).
+        let inFile = home.appendingPathComponent("stdin-\(UUID().uuidString).json")
+        try input.write(to: inFile)
+        let inHandle = try FileHandle(forReadingFrom: inFile)
+        defer { try? inHandle.close(); try? FileManager.default.removeItem(at: inFile) }
+        let outPipe = Pipe(), errPipe = Pipe()
+        p.standardInput = inHandle; p.standardOutput = outPipe; p.standardError = errPipe
+        let start = DispatchTime.now()
+        try p.run()
+        // Read the error stream on another thread so a full buffer can't block the program.
+        nonisolated(unsafe) var err = Data()
+        let errDone = DispatchSemaphore(value: 0)
+        Thread { err = errPipe.fileHandleForReading.readDataToEndOfFile(); errDone.signal() }.start()
+        let out = outPipe.fileHandleForReading.readDataToEndOfFile()
+        errDone.wait()
+        p.waitUntilExit()
+        let secs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1e9
+        return Run(out: out, err: err, status: p.terminationStatus, seconds: secs)
+    }
+
+    static func wiggleroom(_ previous: String?, input: Data, home: URL) throws -> Run {
+        let bin = try #require(binary, "wiggleroom-statusline wasn't built")
+        var args: [String] = []
+        if let previous { args = [StatuslineCommand.thenFlag, Data(previous.utf8).base64EncodedString()] }
+        return try run(bin.path, args, input: input, home: home)
+    }
+
+    /// The previous command run by itself, the way Claude Code runs it. Foundation's Process
+    /// rewrites accented letters in arguments (é becomes e plus an accent mark), so the command
+    /// is handed over in base64 and decoded by the shell, keeping its exact bytes.
+    static func direct(_ command: String, input: Data, home: URL) throws -> Run {
+        let b64 = Data(command.utf8).base64EncodedString()
+        return try run("/bin/sh", ["-c", "exec /bin/sh -c \"$(printf %s \(b64) | /usr/bin/base64 -D)\""], input: input, home: home)
+    }
+
+    static func usageFile(_ home: URL) -> URL { WiggleroomPaths(home: home).usageFile }
+
+    // MARK: Tests
+
+    @Test func binaryIsAvailable() {
+        #expect(Self.binary != nil, "build wiggleroom-statusline before running these tests")
+    }
+
+    @Test func savesOnlyTheLimitsPrivatelyAndPrintsNothing() throws {
+        let home = Self.tempHome()
+        let r = try Self.wiggleroom(nil, input: Self.fixture("full-payload.json"), home: home)
+        #expect(r.status == 0)
+        #expect(r.out.isEmpty && r.err.isEmpty)
+        let data = try #require(FileManager.default.contents(atPath: Self.usageFile(home).path))
+        let top = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(Set(top.keys) == UsageSnapshot.allowedKeys)
+        let text = String(decoding: data, as: UTF8.self)
+        #expect(!text.lowercased().contains("secret") && !text.contains("private/var"))
+        #expect(SecureFile.permissions(of: Self.usageFile(home)) == 0o600)
+        #expect(SecureFile.permissions(of: WiggleroomPaths(home: home).supportFolder) == 0o700)
+    }
+
+    /// The user's status line must look exactly the same with Wiggleroom in front of it.
+    @Test(arguments: [
+        "shasum -a 256",
+        "printf 'width=%s\\n' \"$COLUMNS\"; wc -c | tr -d ' '",
+        "printf '\\033[32m%s\\033[0m ✓ émoji 🚀\\n' line1; printf 'second line\\n'",
+        "cat",
+        "echo partial; exit 3",
+        "echo 'to stderr' >&2; echo out",
+        "exit 0",
+        "true | false",
+        "yes | head -1",
+        "set -o pipefail; yes | head -2; echo \"exit=$?\"",
+    ])
+    func passThroughIsIdentical(previous: String) throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        let without = try Self.direct(previous, input: input, home: home)
+        let with = try Self.wiggleroom(previous, input: input, home: home)
+        #expect(with.out == without.out, "with: \(String(decoding: with.out, as: UTF8.self).debugDescription) without: \(String(decoding: without.out, as: UTF8.self).debugDescription)")
+        #expect(with.err == without.err)
+        #expect(with.status == without.status)
+        // ...and the numbers were still saved, even when the previous command failed.
+        #expect(FileManager.default.fileExists(atPath: Self.usageFile(home).path))
+    }
+
+    /// If Wiggleroom is deleted without disconnecting, the saved command falls back to running
+    /// the previous status line by itself, so Claude Code still shows it.
+    @Test func commandFallsBackWhenWiggleroomIsGone() throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        let previous = "printf 'mine: %s\\n' \"$(wc -c | tr -d ' ')\""
+        let gone = StatuslineCommand(executablePath: "/nonexistent/Wiggleroom.app/Contents/MacOS/wiggleroom-statusline", previous: previous)
+        let viaFallback = try Self.direct(gone.commandLine, input: input, home: home)
+        let alone = try Self.direct(previous, input: input, home: home)
+        #expect(viaFallback.out == alone.out && viaFallback.status == alone.status)
+        #expect(!viaFallback.out.isEmpty)
+        // And with Wiggleroom present, the same command line runs Wiggleroom (which saves numbers).
+        let bin = try #require(Self.binary)
+        let present = StatuslineCommand(executablePath: bin.path, previous: previous)
+        let viaWiggleroom = try Self.direct(present.commandLine, input: input, home: home)
+        #expect(viaWiggleroom.out == alone.out)
+        #expect(FileManager.default.fileExists(atPath: Self.usageFile(home).path))
+        // No previous command and no Wiggleroom: nothing printed, no error.
+        let bare = try Self.direct(StatuslineCommand(executablePath: "/nonexistent/wiggleroom-statusline", previous: nil).commandLine, input: input, home: home)
+        #expect(bare.out.isEmpty && bare.err.isEmpty && bare.status == 0)
+    }
+
+    /// Someone who tried the Headroom preview (this app before its rename) connects Wiggleroom.
+    /// The new setting runs Wiggleroom and then the user's own status line, and never the Headroom
+    /// helper, whether that helper is still installed or already deleted.
+    @Test func headroomPreviewHelperIsNeverRunAfterConnect() throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        let bin = try #require(Self.binary)
+        let mine = "printf 'mine: %s\\n' \"$(wc -c | tr -d ' ')\""
+        // A stand-in for the Headroom helper that leaves a mark if it ever runs.
+        let marker = home.appendingPathComponent("headroom-ran")
+        let headroom = home.appendingPathComponent("Headroom.app/Contents/Helpers/headroom-statusline")
+        try FileManager.default.createDirectory(at: headroom.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\ntouch '\(marker.path)'\necho HEADROOM\n".utf8).write(to: headroom)
+        chmod(headroom.path, 0o755)
+        let alone = try Self.direct(mine, input: input, home: home)
+        for (previous, expected) in [(Optional(mine), alone.out), (nil, Data())] {
+            let b64 = previous.map { Data($0.utf8).base64EncodedString() }
+            let h = "'\(headroom.path)'"
+            let old = b64.map { "[ -x \(h) ] && exec \(h) --then \($0) || eval \"$(printf %s \($0) | /usr/bin/base64 -D)\"" }
+                ?? "[ -x \(h) ] && exec \(h) || true"
+            let settings = try JSONSerialization.data(withJSONObject: ["statusLine": ["type": "command", "command": old]])
+            for headroomInstalled in [true, false] {
+                if !headroomInstalled { try? FileManager.default.removeItem(at: headroom) }
+                guard case .success(let change) = ClaudeSettingsEditor.connect(original: settings, executablePath: bin.path) else {
+                    Issue.record("connect refused"); return
+                }
+                let top = try #require(try JSONSerialization.jsonObject(with: change.newText) as? [String: Any])
+                let command = try #require((top["statusLine"] as? [String: Any])?["command"] as? String)
+                try? FileManager.default.removeItem(at: Self.usageFile(home))
+                let r = try Self.direct(command, input: input, home: home)
+                #expect(r.out == expected, "got \(String(decoding: r.out, as: UTF8.self).debugDescription)")
+                #expect(r.status == 0)
+                #expect(!FileManager.default.fileExists(atPath: marker.path), "the Headroom helper ran")
+                #expect(FileManager.default.fileExists(atPath: Self.usageFile(home).path))
+            }
+            // Put the stand-in back for the next round.
+            try Data("#!/bin/sh\ntouch '\(marker.path)'\necho HEADROOM\n".utf8).write(to: headroom)
+            chmod(headroom.path, 0o755)
+        }
+    }
+
+    @Test func numbersAreSavedBeforeASlowStatusLineFinishes() throws {
+        let home = Self.tempHome()
+        let bin = try #require(Self.binary)
+        let p = Process()
+        p.executableURL = bin
+        p.arguments = [StatuslineCommand.thenFlag, Data("sleep 1.5; echo done".utf8).base64EncodedString()]
+        p.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin"]
+        let inPipe = Pipe(), outPipe = Pipe()
+        p.standardInput = inPipe; p.standardOutput = outPipe
+        try p.run()
+        try inPipe.fileHandleForWriting.write(contentsOf: Self.fixture("full-payload.json"))
+        try inPipe.fileHandleForWriting.close()
+        var savedWhileRunning = false
+        for _ in 0..<50 {
+            usleep(10_000)
+            if FileManager.default.fileExists(atPath: Self.usageFile(home).path) { savedWhileRunning = p.isRunning; break }
+        }
+        #expect(savedWhileRunning)
+        p.waitUntilExit()
+        #expect(String(decoding: outPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self) == "done\n")
+    }
+
+    @Test func cancelStopsPromptly() throws {
+        // Claude Code cancels a status line that is still running when a newer update arrives.
+        let home = Self.tempHome()
+        let bin = try #require(Self.binary)
+        let p = Process()
+        p.executableURL = bin
+        p.arguments = [StatuslineCommand.thenFlag, Data("sleep 10".utf8).base64EncodedString()]
+        p.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin"]
+        let inPipe = Pipe()
+        p.standardInput = inPipe
+        p.standardOutput = Pipe()
+        try p.run()
+        try inPipe.fileHandleForWriting.write(contentsOf: Self.fixture("full-payload.json"))
+        try inPipe.fileHandleForWriting.close()
+        usleep(200_000)
+        let start = Date()
+        p.terminate()
+        p.waitUntilExit()
+        #expect(Date().timeIntervalSince(start) < 1)
+        #expect(p.terminationReason == .exit && p.terminationStatus == 128 + SIGTERM)
+    }
+
+    @Test func noRateLimitsWritesNothingAndStillPassesThrough() throws {
+        let home = Self.tempHome()
+        let r = try Self.wiggleroom("echo hello", input: Self.fixture("no-rate-limits.json"), home: home)
+        #expect(String(decoding: r.out, as: UTF8.self) == "hello\n")
+        #expect(r.status == 0)
+        #expect(!FileManager.default.fileExists(atPath: WiggleroomPaths(home: home).supportFolder.path))
+    }
+
+    @Test func garbageInputAndBrokenArgumentsNeverBreakTheStatusLine() throws {
+        let home = Self.tempHome()
+        let r = try Self.wiggleroom("cat", input: Data("this is not JSON {{{".utf8), home: home)
+        #expect(String(decoding: r.out, as: UTF8.self) == "this is not JSON {{{")
+        #expect(r.status == 0)
+        let bin = try #require(Self.binary)
+        let bad = try Self.run(bin.path, ["--then", "%%%not-base64"], input: Self.fixture("full-payload.json"), home: home)
+        #expect(bad.status == 0 && bad.out.isEmpty)
+        let empty = try Self.run(bin.path, [], input: Data(), home: home)
+        #expect(empty.status == 0 && empty.out.isEmpty)
+    }
+
+    @Test func unwritableHomeIsSwallowed() throws {
+        let home = Self.tempHome()
+        try Data("x".utf8).write(to: home.appendingPathComponent("Library"))  // a file where a folder should be
+        let r = try Self.wiggleroom("echo still works", input: Self.fixture("full-payload.json"), home: home)
+        #expect(String(decoding: r.out, as: UTF8.self) == "still works\n")
+        #expect(r.status == 0)
+        #expect(r.err.isEmpty)
+    }
+
+    /// PRD section 7: the script must finish within 50 ms. Median of 25 runs, after one warm-up.
+    @Test func runsInUnderFiftyMilliseconds() throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        _ = try Self.wiggleroom(nil, input: input, home: home)
+        var times: [Double] = []
+        for _ in 0..<25 { times.append(try Self.wiggleroom(nil, input: input, home: home).seconds) }
+        times.sort()
+        let median = times[times.count / 2]
+        print("wiggleroom-statusline median \(Int(median * 1000)) ms, fastest \(Int(times[0] * 1000)) ms, slowest \(Int(times.last! * 1000)) ms")
+        #expect(median < 0.050)
+    }
+
+    /// Lesson 15: a huge payload (2 MB of path text) stays fast and small.
+    @Test func largeInputStaysWithinBudget() throws {
+        let home = Self.tempHome()
+        var obj = try #require(try JSONSerialization.jsonObject(with: Self.fixture("full-payload.json")) as? [String: Any])
+        obj["cwd"] = String(repeating: "/very-long-folder-name", count: 100_000)
+        obj["extra"] = Array(repeating: ["a": 1, "b": "text"], count: 20_000)
+        let big = try JSONSerialization.data(withJSONObject: obj)
+        #expect(big.count > 2_000_000)
+        var before = rusage(); getrusage(RUSAGE_CHILDREN, &before)
+        let r = try Self.wiggleroom("wc -c | tr -d ' '", input: big, home: home)
+        var after = rusage(); getrusage(RUSAGE_CHILDREN, &after)
+        #expect(String(decoding: r.out, as: UTF8.self) == "\(big.count)\n") // the previous command got all of it
+        #expect(r.seconds < 0.5)
+        // ru_maxrss is in bytes on macOS. The largest child so far must stay under 100 MB.
+        #expect(after.ru_maxrss < 100 * 1024 * 1024)
+        print("2 MB payload: \(Int(r.seconds * 1000)) ms, peak child memory \(after.ru_maxrss / 1024 / 1024) MB")
+        let data = try #require(FileManager.default.contents(atPath: Self.usageFile(home).path))
+        #expect(!String(decoding: data, as: UTF8.self).contains("very-long-folder-name"))
+    }
+
+    @Test func twoSessionsAtOnceLeaveOneValidFile() async throws {
+        let home = Self.tempHome()
+        let input = Self.fixture("full-payload.json")
+        try await withThrowingTaskGroup(of: Void.self) { g in
+            for _ in 0..<8 { g.addTask { _ = try Self.wiggleroom("cat > /dev/null", input: input, home: home) } }
+            try await g.waitForAll()
+        }
+        let s = try #require(SecureFile.readSmallFile(Self.usageFile(home)).flatMap(UsageSnapshot.decode))
+        #expect(s.limits.count == 3)
+        let names = try FileManager.default.contentsOfDirectory(atPath: WiggleroomPaths(home: home).supportFolder.path)
+        #expect(Set(names) == ["usage.json", ".usage.lock"])
+    }
+}

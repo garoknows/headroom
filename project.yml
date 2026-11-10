@@ -1,4 +1,4 @@
-name: Headroom
+name: Wiggleroom
 options:
   bundleIdPrefix: io.github.garoknows
   deploymentTarget:
@@ -23,13 +23,13 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
 packages:
-  HeadroomCore:
-    path: Packages/HeadroomCore
+  WiggleroomCore:
+    path: Packages/WiggleroomCore
 
 targets:
   # The menu bar helper. Not sandboxed: it must read its own data folder and, only when the
   # user clicks Connect, edit ~/.claude/settings.json. Hardened runtime, Developer ID signed.
-  Headroom:
+  Wiggleroom:
     type: application
     platform: macOS
     sources:
@@ -37,75 +37,75 @@ targets:
       - path: App/Resources
         buildPhase: resources
     dependencies:
-      - package: HeadroomCore
-        product: HeadroomCore
-      - package: HeadroomCore
-        product: HeadroomUI
-      - target: HeadroomWidgets
+      - package: WiggleroomCore
+        product: WiggleroomCore
+      - package: WiggleroomCore
+        product: WiggleroomUI
+      - target: WiggleroomWidgets
         embed: true
         codeSign: true
       # The status line program ships next to the app's executable (Contents/MacOS).
-      - target: headroom-statusline
+      - target: wiggleroom-statusline
         embed: true
         codeSign: true
         copy:
           destination: executables
     settings:
       base:
-        PRODUCT_NAME: Headroom
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom
+        PRODUCT_NAME: Wiggleroom
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.wiggleroom
         INFOPLIST_FILE: App/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: $(HEADROOM_APP_ENTITLEMENTS)
+        CODE_SIGN_ENTITLEMENTS: $(WIGGLEROOM_APP_ENTITLEMENTS)
 
   # The widget. Sandboxed (WidgetKit requires it). Reads only the App Group snapshot.
-  HeadroomWidgets:
+  WiggleroomWidgets:
     type: app-extension
     platform: macOS
     sources:
       - path: Widgets/Sources
     dependencies:
-      - package: HeadroomCore
-        product: HeadroomCore
-      - package: HeadroomCore
-        product: HeadroomUI
+      - package: WiggleroomCore
+        product: WiggleroomCore
+      - package: WiggleroomCore
+        product: WiggleroomUI
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
     settings:
       base:
-        PRODUCT_NAME: HeadroomWidgets
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom.widgets
+        PRODUCT_NAME: WiggleroomWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.wiggleroom.widgets
         INFOPLIST_FILE: Widgets/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: $(HEADROOM_WIDGET_ENTITLEMENTS)
+        CODE_SIGN_ENTITLEMENTS: $(WIGGLEROOM_WIDGET_ENTITLEMENTS)
         SKIP_INSTALL: YES
 
   # The command Claude Code runs on every status line update.
-  headroom-statusline:
+  wiggleroom-statusline:
     type: tool
     platform: macOS
     sources:
-      - path: Packages/HeadroomCore/Sources/headroom-statusline
+      - path: Packages/WiggleroomCore/Sources/wiggleroom-statusline
     dependencies:
-      - package: HeadroomCore
-        product: HeadroomCore
+      - package: WiggleroomCore
+        product: WiggleroomCore
     settings:
       base:
-        PRODUCT_NAME: headroom-statusline
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.headroom.statusline
+        PRODUCT_NAME: wiggleroom-statusline
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.garoknows.wiggleroom.statusline
         SKIP_INSTALL: YES
         SWIFT_OPTIMIZATION_LEVEL: -O
 
 schemes:
-  Headroom:
+  Wiggleroom:
     build:
       targets:
-        Headroom: all
-        HeadroomWidgets: all
-        headroom-statusline: all
+        Wiggleroom: all
+        WiggleroomWidgets: all
+        wiggleroom-statusline: all
     test:
       targets:
-        - package: HeadroomCore/HeadroomCoreTests
-        - package: HeadroomCore/StatuslineTests
+        - package: WiggleroomCore/WiggleroomCoreTests
+        - package: WiggleroomCore/StatuslineTests
     archive:
       config: Release

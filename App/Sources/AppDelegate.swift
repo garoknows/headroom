@@ -1,8 +1,8 @@
 import AppKit
-import HeadroomCore
+import WiggleroomCore
 import SwiftUI
 
-/// Headroom runs in the background (no Dock icon). Opening the app again shows Settings.
+/// Wiggleroom runs in the background (no Dock icon). Opening the app again shows Settings.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Double-clicking Headroom while it's running opens Settings.
+    /// Double-clicking Wiggleroom while it's running opens Settings.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { showSettings() }
         return true
@@ -35,14 +35,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showSettings() {
         model.refreshConnection()
         if settingsWindow == nil {
-            settingsWindow = makeWindow(title: "Headroom Settings", root: SettingsView(model: model, openSetup: { [weak self] in self?.showSetup() }))
+            settingsWindow = makeWindow(title: "Wiggleroom Settings", root: SettingsView(model: model, openSetup: { [weak self] in self?.showSetup() }))
         }
         present(settingsWindow)
     }
 
     func showSetup() {
         if setupWindow == nil {
-            setupWindow = makeWindow(title: "Set Up Headroom", root: SetupView(model: model, done: { [weak self] in
+            setupWindow = makeWindow(title: "Set Up Wiggleroom", root: SetupView(model: model, done: { [weak self] in
                 self?.setupWindow?.close()
             }))
         }

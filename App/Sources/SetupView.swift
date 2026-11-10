@@ -1,5 +1,5 @@
-import HeadroomCore
-import HeadroomUI
+import WiggleroomCore
+import WiggleroomUI
 import SwiftUI
 
 /// The first-run window: connect, add the widget (with annotated pictures), choose options.
@@ -16,15 +16,15 @@ struct SetupView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 14) {
-                    HeadroomMark().frame(width: 52, height: 52)
+                    WiggleroomMark().frame(width: 52, height: 52)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Welcome to Headroom").font(.title.bold())
+                        Text("Welcome to Wiggleroom").font(.title.bold())
                         Text("See how much of your Claude plan you've used, right in Notification Center.").foregroundStyle(.secondary)
                     }
                 }
 
                 step(1, "Connect to Claude Code") {
-                    Text("Claude Code hands your plan's usage to its status line after every reply. Headroom adds a small helper there that saves just those numbers, then runs your existing status line exactly as before. Your Claude Code settings are backed up first, and Disconnect puts them back.")
+                    Text("Claude Code hands your plan's usage to its status line after every reply. Wiggleroom adds a small helper there that saves just those numbers, then runs your existing status line exactly as before. Your Claude Code settings are backed up first, and Disconnect puts them back.")
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 12) {
                         if model.isConnected && !model.connectedElsewhere {
@@ -43,11 +43,11 @@ struct SetupView: View {
                     MenuBarPicture()
                     caption(2, "Scroll to the bottom of Notification Center and click Edit Widgets.")
                     NotificationCenterPicture()
-                    caption(3, "Type Headroom in the search field.")
+                    caption(3, "Type Wiggleroom in the search field.")
                     caption(4, "Pick a size, then click the green + (or drag the widget into Notification Center). Click Done.")
                     WidgetGalleryPicture(sample: sample).scaleEffect(0.82, anchor: .topLeading).frame(height: 232, alignment: .topLeading)
                     if model.groupFolder == nil {
-                        Label("This copy of Headroom isn't signed, so its widget can't receive numbers. Use the menu bar item instead, or install the signed release.", systemImage: "info.circle")
+                        Label("This copy of Wiggleroom isn't signed, so its widget can't receive numbers. Use the menu bar item instead, or install the signed release.", systemImage: "info.circle")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -55,7 +55,7 @@ struct SetupView: View {
                 step(3, "Options") {
                     Toggle("Alert me when I pass 90% of my weekly limit", isOn: $model.alerts.enabled)
                     Toggle("Show my weekly percent in the menu bar", isOn: $model.showMenuBar)
-                    Toggle("Open Headroom at login (it keeps the widget up to date)", isOn: $openAtLogin)
+                    Toggle("Open Wiggleroom at login (it keeps the widget up to date)", isOn: $openAtLogin)
                 }
 
                 HStack {

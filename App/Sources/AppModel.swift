@@ -1,7 +1,7 @@
 import AppKit
 import Combine
-import HeadroomCore
-import HeadroomUI
+import WiggleroomCore
+import WiggleroomUI
 import ServiceManagement
 import UserNotifications
 import WidgetKit
@@ -9,7 +9,7 @@ import WidgetKit
 /// Everything the app's windows and menu show, and every action they can take.
 @MainActor
 final class AppModel: ObservableObject {
-    let paths = HeadroomPaths.currentUser()
+    let paths = WiggleroomPaths.currentUser()
     /// The App Group folder shared with the widget. Nil in unsigned builds.
     let groupFolder = AppGroupFiles.folder()
     let defaults = UserDefaults.standard
@@ -104,7 +104,7 @@ final class AppModel: ObservableObject {
         connection = connectionHelper.status()
     }
 
-    /// True when the setting points at a Headroom in another place (the app was moved).
+    /// True when the setting points at a Wiggleroom in another place (the app was moved).
     var connectedElsewhere: Bool {
         if case .connected(let c) = connection { return c.executablePath != HelperLocation.executablePath }
         return false
@@ -200,7 +200,7 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([target])
     }
 
-    /// Disconnects (so the file isn't recreated), then removes every file Headroom made.
+    /// Disconnects (so the file isn't recreated), then removes every file Wiggleroom made.
     func deleteAllData() {
         var notes: [String] = []
         if isConnected {
@@ -216,7 +216,7 @@ final class AppModel: ObservableObject {
         WidgetCenter.shared.reloadAllTimelines()
         showMenuBar = false
         alerts = .default
-        notes.append(problems.isEmpty ? "All Headroom data was deleted." : "Some files couldn't be deleted: \(problems.joined(separator: "; ")).")
+        notes.append(problems.isEmpty ? "All Wiggleroom data was deleted." : "Some files couldn't be deleted: \(problems.joined(separator: "; ")).")
         lastMessage = notes.joined(separator: " ")
         refreshConnection()
         watcher?.arm()

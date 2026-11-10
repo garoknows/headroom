@@ -1,10 +1,10 @@
-// Renders Headroom's widget and setup pictures offscreen to PNG files, for checking by eye and
+// Renders Wiggleroom's widget and setup pictures offscreen to PNG files, for checking by eye and
 // for the docs. Uses the same SwiftUI views the widget and the app use, with invented numbers.
 // Usage: tools/render-docs.sh [output folder]   (default docs/images)
 
 import AppKit
-import HeadroomCore
-import HeadroomUI
+import WiggleroomCore
+import WiggleroomUI
 import SwiftUI
 
 let args = Array(CommandLine.arguments.dropFirst())
@@ -17,7 +17,7 @@ if args.first == "--iconset", args.count == 2 {
         for base in [16, 32, 128, 256, 512] {
             for scale in [1, 2] {
                 let px = CGFloat(base * scale)
-                let r = ImageRenderer(content: HeadroomMark(iconGrid: true).frame(width: px, height: px))
+                let r = ImageRenderer(content: WiggleroomMark(iconGrid: true).frame(width: px, height: px))
                 r.scale = 1
                 let name = scale == 1 ? "icon_\(base)x\(base).png" : "icon_\(base)x\(base)@2x.png"
                 let data = NSBitmapImageRep(cgImage: r.cgImage!).representation(using: .png, properties: [:])!
@@ -95,5 +95,5 @@ MainActor.assumeIsolated {
         save(NotificationCenterPicture().padding(16), "setup-2-notification-center-\(sname)", scheme: scheme)
         save(WidgetGalleryPicture(sample: normal).padding(16), "setup-3-widget-gallery-\(sname)", scheme: scheme)
     }
-    save(HeadroomMark(iconGrid: true).frame(width: 512, height: 512), "icon", scheme: .light)
+    save(WiggleroomMark(iconGrid: true).frame(width: 512, height: 512), "icon", scheme: .light)
 }

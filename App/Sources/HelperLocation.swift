@@ -5,6 +5,6 @@ enum HelperLocation {
     static var executablePath: String {
         let dir = Bundle.main.executableURL?.deletingLastPathComponent()
             ?? Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS")
-        return dir.appendingPathComponent("headroom-statusline").path
+        return dir.appendingPathComponent("wiggleroom-statusline").path
     }
 }

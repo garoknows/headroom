@@ -22,7 +22,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
     env:
-      APP_NAME: Headroom
+      APP_NAME: Wiggleroom
       # Signing and notarizing turn on automatically when these repository secrets exist.
       # Without them the release is ad hoc signed (first launch needs "Open Anyway").
       HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.APPLE_TEAM_ID != '' }}
@@ -64,7 +64,7 @@ jobs:
 
       - name: Tests
         timeout-minutes: 15
-        run: swift test -c release --package-path Packages/HeadroomCore
+        run: swift test -c release --package-path Packages/WiggleroomCore
 
       - name: Picture metadata check (lesson 4)
         run: python3 scripts/check-image-metadata.py docs/images
@@ -94,7 +94,7 @@ jobs:
 
       - name: Build (Release)
         run: |
-          xcodebuild -project Headroom.xcodeproj -scheme Headroom \
+          xcodebuild -project Wiggleroom.xcodeproj -scheme Wiggleroom \
             -configuration Release -destination "generic/platform=macOS" \
             -derivedDataPath build.nosync/dd build
           mkdir -p dist
@@ -125,9 +125,9 @@ jobs:
         env:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
-          scripts/make-dmg.sh "dist/$APP_NAME.app" "dist/Headroom-$VERSION.dmg"
+          scripts/make-dmg.sh "dist/$APP_NAME.app" "dist/Wiggleroom-$VERSION.dmg"
           if [ "$HAS_SIGNING" = "true" ]; then
-            codesign --sign "Developer ID Application" --timestamp "dist/Headroom-$VERSION.dmg"
+            codesign --sign "Developer ID Application" --timestamp "dist/Wiggleroom-$VERSION.dmg"
           fi
 
       - name: Notarize and staple the DMG
@@ -138,7 +138,7 @@ jobs:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           export ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
-          scripts/notarize.sh "dist/Headroom-$VERSION.dmg"
+          scripts/notarize.sh "dist/Wiggleroom-$VERSION.dmg"
 
       - name: Verify Developer ID signature and notarization
         if: env.HAS_SIGNING == 'true' && env.HAS_NOTARY == 'true'
@@ -147,9 +147,9 @@ jobs:
         run: |
           codesign -dv --verbose=2 "dist/$APP_NAME.app" 2>&1 | grep -E "^Authority|flags="
           spctl --assess --type execute --verbose=2 "dist/$APP_NAME.app"
-          spctl --assess --type open --context context:primary-signature --verbose=2 "dist/Headroom-$VERSION.dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "dist/Wiggleroom-$VERSION.dmg"
           xcrun stapler validate "dist/$APP_NAME.app"
-          xcrun stapler validate "dist/Headroom-$VERSION.dmg"
+          xcrun stapler validate "dist/Wiggleroom-$VERSION.dmg"
 
       - name: Checksums
         run: (cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt && cat SHA256SUMS.txt)
@@ -209,4 +209,4 @@ jobs:
           FLAGS=()
           [ "$PRERELEASE" = "true" ] && FLAGS+=(--prerelease)
           gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/SHA256SUMS.txt "${FLAGS[@]}" \
-            --verify-tag --title "Headroom $VERSION" --notes-file dist/notes.md
+            --verify-tag --title "Wiggleroom $VERSION" --notes-file dist/notes.md

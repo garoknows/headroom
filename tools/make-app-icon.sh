@@ -1,9 +1,9 @@
 #!/bin/bash
-# Draws the app icon from code (HeadroomMark in HeadroomUI) and packs App/Resources/AppIcon.icns.
+# Draws the app icon from code (WiggleroomMark in WiggleroomUI) and packs App/Resources/AppIcon.icns.
 # Usage: tools/make-app-icon.sh   (run tools/render-docs.sh once first; it builds the renderer)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-B="${HEADROOM_BUILD_DIR:-$HOME/Library/Caches/Headroom-build}/render-docs"
+B="${WIGGLEROOM_BUILD_DIR:-$HOME/Library/Caches/Wiggleroom-build}/render-docs"
 SET="$B/AppIcon.iconset"
 rm -rf "$SET"
 "$B/render-docs" --iconset "$SET"

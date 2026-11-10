@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Headroom</string>
+	<string>Wiggleroom</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,7 +27,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
-	<key>HeadroomAppGroup</key>
-	<string>$(HEADROOM_APP_GROUP)</string>
+	<key>WiggleroomAppGroup</key>
+	<string>$(WIGGLEROOM_APP_GROUP)</string>
 </dict>
 </plist>

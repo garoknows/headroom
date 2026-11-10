@@ -1,7 +1,7 @@
 #!/bin/bash
 # Updates the Homebrew cask's version and sha256 lines, and nothing else
 # (CI runs it on a copy and checks that only those two lines changed.)
-# Usage: scripts/update-cask.sh Casks/headroom-usage.rb 0.1.0 <sha256 of the DMG>
+# Usage: scripts/update-cask.sh Casks/wiggleroom.rb 0.1.0 <sha256 of the DMG>
 # (Copied from Tracker for GitHub.)
 set -euo pipefail
 CASK="$1"; VERSION="$2"; SHA="$3"

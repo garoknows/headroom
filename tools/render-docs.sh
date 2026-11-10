@@ -1,11 +1,11 @@
 #!/bin/bash
 # Renders the widget states and setup pictures to PNG (docs/images by default) with swiftc,
-# using the real HeadroomCore and HeadroomUI code.
+# using the real WiggleroomCore and WiggleroomUI code.
 # Usage: tools/render-docs.sh [output folder]
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/docs/images}"
-B="${HEADROOM_BUILD_DIR:-$HOME/Library/Caches/Headroom-build}/render-docs"
+B="${WIGGLEROOM_BUILD_DIR:-$HOME/Library/Caches/Wiggleroom-build}/render-docs"
 mkdir -p "$B"
 DEV="$(xcode-select -p)"
 TC="$DEV/Toolchains/XcodeDefault.xctoolchain"
@@ -14,12 +14,12 @@ SDK="$DEV/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 export TMPDIR="$B/tmp"; mkdir -p "$TMPDIR"
 COMMON=(-swift-version 6 -sdk "$SDK" -module-cache-path "$B/modcache" -target "$(uname -m)-apple-macos14.0"
         -plugin-path "$TC/usr/lib/swift/host/plugins")
-P="$ROOT/Packages/HeadroomCore/Sources"
-"$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name HeadroomCore \
-  -emit-module-path "$B/HeadroomCore.swiftmodule" "$P"/HeadroomCore/*.swift -o "$B/libHeadroomCore.a"
-"$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name HeadroomUI -I "$B" \
-  -emit-module-path "$B/HeadroomUI.swiftmodule" "$P"/HeadroomUI/*.swift -o "$B/libHeadroomUI.a"
-"$SWIFTC" "${COMMON[@]}" -I "$B" -L "$B" -lHeadroomCore -lHeadroomUI -module-name RenderDocs \
+P="$ROOT/Packages/WiggleroomCore/Sources"
+"$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name WiggleroomCore \
+  -emit-module-path "$B/WiggleroomCore.swiftmodule" "$P"/WiggleroomCore/*.swift -o "$B/libWiggleroomCore.a"
+"$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name WiggleroomUI -I "$B" \
+  -emit-module-path "$B/WiggleroomUI.swiftmodule" "$P"/WiggleroomUI/*.swift -o "$B/libWiggleroomUI.a"
+"$SWIFTC" "${COMMON[@]}" -I "$B" -L "$B" -lWiggleroomCore -lWiggleroomUI -module-name RenderDocs \
   "$ROOT"/tools/RenderDocs/main.swift -o "$B/render-docs"
 mkdir -p "$OUT"
 "$B/render-docs" "$OUT"

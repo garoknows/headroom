@@ -29,7 +29,7 @@ jobs:
 
       - name: Core tests (parser, status line program end to end, settings editor, no-network scan)
         timeout-minutes: 15
-        run: swift test -c release --package-path Packages/HeadroomCore
+        run: swift test -c release --package-path Packages/WiggleroomCore
 
       - name: Version, cask and picture checks
         run: |
@@ -44,13 +44,13 @@ jobs:
 
       - name: Build app, widget and status line program (Release, ad hoc signed)
         run: |
-          xcodebuild -project Headroom.xcodeproj -scheme Headroom \
+          xcodebuild -project Wiggleroom.xcodeproj -scheme Wiggleroom \
             -configuration Release -destination "generic/platform=macOS" \
             -derivedDataPath build.nosync/dd build
 
       - name: Privacy and version checks on the built app
         run: |
-          APP=build.nosync/dd/Build/Products/Release/Headroom.app
+          APP=build.nosync/dd/Build/Products/Release/Wiggleroom.app
           find "$APP" -maxdepth 4 -type f | sed "s|$APP/||" | sort
           scripts/check-privacy.sh "$APP"
           scripts/check-version.sh "" "$APP"
@@ -58,12 +58,12 @@ jobs:
       - name: The built status line program passes input through unchanged
         run: |
           H="$RUNNER_TEMP/home"; mkdir -p "$H"
-          BIN=build.nosync/dd/Build/Products/Release/Headroom.app/Contents/MacOS/headroom-statusline
-          IN=Packages/HeadroomCore/Tests/HeadroomCoreTests/Fixtures/full-payload.json
+          BIN=build.nosync/dd/Build/Products/Release/Wiggleroom.app/Contents/MacOS/wiggleroom-statusline
+          IN=Packages/WiggleroomCore/Tests/WiggleroomCoreTests/Fixtures/full-payload.json
           A="$(HOME="$H" "$BIN" --then "$(printf 'shasum -a 256' | base64)" < "$IN")"
           B="$(shasum -a 256 < "$IN")"
           [ "$A" = "$B" ] || { echo "pass-through differs: $A vs $B"; exit 1; }
-          test -f "$H/Library/Application Support/io.github.garoknows.headroom/usage.json"
+          test -f "$H/Library/Application Support/io.github.garoknows.wiggleroom/usage.json"
 
   secret-scan:
     runs-on: ubuntu-latest

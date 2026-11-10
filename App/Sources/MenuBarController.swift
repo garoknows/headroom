@@ -1,7 +1,7 @@
 import AppKit
 import Combine
-import HeadroomCore
-import HeadroomUI
+import WiggleroomCore
+import WiggleroomUI
 import SwiftUI
 
 /// The optional menu bar item (off by default): a small gauge and the weekly percent.
@@ -47,7 +47,7 @@ final class MenuBarController {
         let row = model.display?.primary
         button.image = Self.gauge(fraction: (row?.usedPercent ?? 0) / 100)
         button.title = row?.percent.map { " \($0)%" } ?? ""
-        button.setAccessibilityLabel(row.map { "Headroom: \($0.title) \($0.percentText)" } ?? "Headroom: no numbers yet")
+        button.setAccessibilityLabel(row.map { "Wiggleroom: \($0.title) \($0.percentText)" } ?? "Wiggleroom: no numbers yet")
     }
 
     @objc private func toggle() {
@@ -100,7 +100,7 @@ struct PopoverView: View {
             HStack {
                 Button("Settings…", action: openSettings)
                 Spacer()
-                Button("Quit Headroom") { NSApp.terminate(nil) }
+                Button("Quit Wiggleroom") { NSApp.terminate(nil) }
             }
         }
         .padding(16)

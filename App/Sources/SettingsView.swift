@@ -1,5 +1,5 @@
-import HeadroomCore
-import HeadroomUI
+import WiggleroomCore
+import WiggleroomUI
 import SwiftUI
 
 struct SettingsView: View {
@@ -33,7 +33,7 @@ struct SettingsView: View {
                 Text(model.display?.asOfText ?? "No numbers from Claude Code yet. They arrive with your next Claude Code reply.")
                     .foregroundStyle(.secondary)
                 if model.groupFolder == nil {
-                    Label("This copy of Headroom isn't signed, so it can't share numbers with widgets. The menu bar item still works. Install the signed release to use the widget.", systemImage: "info.circle")
+                    Label("This copy of Wiggleroom isn't signed, so it can't share numbers with widgets. The menu bar item still works. Install the signed release to use the widget.", systemImage: "info.circle")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -53,7 +53,7 @@ struct SettingsView: View {
                 }
                 if model.alerts.enabled && model.notificationsAllowed == false {
                     HStack {
-                        Text("Notifications for Headroom are turned off in System Settings.").foregroundStyle(.secondary)
+                        Text("Notifications for Wiggleroom are turned off in System Settings.").foregroundStyle(.secondary)
                         Button("Open Settings") {
                             if let u = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(u) }
                         }
@@ -69,25 +69,25 @@ struct SettingsView: View {
             }
 
             Section("Your data") {
-                Text("Headroom keeps only the percent used, the reset times, the limit names and when they were updated. It has no network code and never reads your Claude sign-in.")
+                Text("Wiggleroom keeps only the percent used, the reset times, the limit names and when they were updated. It has no network code and never reads your Claude sign-in.")
                     .foregroundStyle(.secondary)
                 HStack {
                     Button("Reveal Data File") { model.revealDataFile() }
                     Spacer()
-                    Button("Delete All Headroom Data…", role: .destructive) { confirmDelete = true }
+                    Button("Delete All Wiggleroom Data…", role: .destructive) { confirmDelete = true }
                 }
             }
 
             Section {
                 HStack {
-                    Text("Headroom \(model.version)").foregroundStyle(.secondary)
+                    Text("Wiggleroom \(model.version)").foregroundStyle(.secondary)
                     Spacer()
-                    Link("Help and source code", destination: URL(string: "https://github.com/garoknows/headroom")!)
+                    Link("Help and source code", destination: URL(string: "https://github.com/garoknows/wiggleroom")!)
                 }
                 HStack {
-                    Text("Headroom runs in the background to keep the widget up to date.").font(.caption).foregroundStyle(.secondary)
+                    Text("Wiggleroom runs in the background to keep the widget up to date.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Quit Headroom") { NSApp.terminate(nil) }
+                    Button("Quit Wiggleroom") { NSApp.terminate(nil) }
                 }
                 Text("An independent open-source project. Not made by or affiliated with Anthropic.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -97,15 +97,15 @@ struct SettingsView: View {
         .frame(width: 520)
         .frame(minHeight: 560)
         .onAppear { model.refreshConnection(); model.refreshNotificationPermission() }
-        .confirmationDialog("Disconnect Headroom from Claude Code?", isPresented: $confirmDisconnect) {
+        .confirmationDialog("Disconnect Wiggleroom from Claude Code?", isPresented: $confirmDisconnect) {
             Button("Disconnect") { model.disconnect() }
         } message: {
             Text("Your previous status line setting is put back. The widget keeps showing the last numbers it has.")
         }
-        .confirmationDialog("Delete all Headroom data?", isPresented: $confirmDelete) {
+        .confirmationDialog("Delete all Wiggleroom data?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) { model.deleteAllData() }
         } message: {
-            Text("This disconnects Headroom from Claude Code (your previous status line comes back), deletes the saved numbers and the widget's copy, and resets Headroom's settings. Backups of your Claude Code settings are kept.")
+            Text("This disconnects Wiggleroom from Claude Code (your previous status line comes back), deletes the saved numbers and the widget's copy, and resets Wiggleroom's settings. Backups of your Claude Code settings are kept.")
         }
     }
 }
@@ -117,15 +117,15 @@ struct ConnectionStatusRow: View {
         switch model.connection {
         case .connected(let c):
             if model.connectedElsewhere {
-                Label("Connected, but to a copy of Headroom in another place. Click Update Connection.", systemImage: "exclamationmark.triangle")
+                Label("Connected, but to a copy of Wiggleroom in another place. Click Update Connection.", systemImage: "exclamationmark.triangle")
             } else {
-                Label(c.previous == nil ? "Connected" : "Connected. Your own status line still runs after Headroom.", systemImage: "checkmark.circle.fill")
+                Label(c.previous == nil ? "Connected" : "Connected. Your own status line still runs after Wiggleroom.", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             }
         case .notConnected(let other):
-            Label(other ? "Not connected. You have your own status line; Headroom will keep it working." : "Not connected", systemImage: "circle")
+            Label(other ? "Not connected. You have your own status line; Wiggleroom will keep it working." : "Not connected", systemImage: "circle")
         case .noSettingsFile:
-            Label("Not connected. Claude Code has no settings file yet; Headroom will create one.", systemImage: "circle")
+            Label("Not connected. Claude Code has no settings file yet; Wiggleroom will create one.", systemImage: "circle")
         case .unreadable(let r):
             Label(r.message, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
         }
