@@ -123,11 +123,22 @@ import Testing
         #expect(UsageLevel.of(percent: 75) == .warning)
         #expect(UsageLevel.of(percent: 89.99) == .warning)
         #expect(UsageLevel.of(percent: 90) == .critical)
-        #expect(UsageFormatter.wholePercent(9.4) == 9)
+        #expect(UsageFormatter.wholePercent(9.4) == 10)
         #expect(UsageFormatter.wholePercent(9.5) == 10)
         #expect(UsageFormatter.wholePercent(99.7) == 99)
         #expect(UsageFormatter.wholePercent(100) == 100)
         #expect(UsageFormatter.wholePercent(0) == 0)
+    }
+
+    /// The percent rounds up, like Claude's usage page, so it never shows less than was used:
+    /// 3.2 shows 4%. Exactly 0 stays 0%, and 100% only appears when the limit is really used up.
+    @Test(arguments: [
+        (0.0, 0), (0.1, 1), (3.0, 3), (3.2, 4), (98.9, 99), (99.1, 99), (100.0, 100),
+    ])
+    func percentRoundsUp(raw: Double, shown: Int) {
+        #expect(UsageFormatter.wholePercent(raw) == shown)
+        let s = UsageSnapshot(updatedAt: Date(), limits: [LimitWindow(id: "seven_day", usedPercent: raw, resetsAt: Date().addingTimeInterval(86400))])
+        #expect(UsageFormatter.display(s, context: DisplayContext(now: Date())).rows[0].percentText == "\(shown)% used")
     }
 
     @Test func titles() {

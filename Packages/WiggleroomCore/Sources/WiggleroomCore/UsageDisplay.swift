@@ -119,10 +119,12 @@ public enum UsageFormatter {
         }
     }
 
-    /// Whole percent, rounded, but never "100%" until the limit is really used up.
+    /// Whole percent, rounded up like Claude's usage page, so it never shows less than was used
+    /// (3.2 shows 4%). Exactly 0 stays 0%, and it never says "100%" until the limit is really
+    /// used up. The tiny tolerance keeps a whole number that arrives as 3.0000000001 at 3%.
     public static func wholePercent(_ p: Double) -> Int {
-        let r = Int(p.rounded())
-        return (r == 100 && p < 100) ? 99 : r
+        let r = Int((p - 1e-9).rounded(.up))
+        return (r >= 100 && p < 100) ? 99 : max(0, r)
     }
 
     static func row(_ l: LimitWindow, context: DisplayContext) -> LimitRow {
