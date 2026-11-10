@@ -40,7 +40,7 @@ Wiggleroom edits `~/.claude/settings.json` only when you click **Connect** or **
 
 ## Deleting your data
 
-**Settings > Delete All Wiggleroom Data** disconnects from Claude Code, deletes both numbers files and resets Wiggleroom's preferences. Backups of your Claude Code settings are your own settings, so they're kept in `settings-backups/`; delete that folder yourself if you don't want them.
+**Settings > Delete All Wiggleroom Data** disconnects from Claude Code, deletes both numbers files and resets Wiggleroom's preferences. Backups of your Claude Code settings are your own settings, so they're kept in `settings-backups/`; delete that folder yourself if you don't want them. If you tried the one-day Headroom preview (this app's name before it was renamed), it also clears that preview's folder, `~/Library/Application Support/io.github.garoknows.headroom/`, the same way. It never touches `~/Library/Application Support/Headroom/`, which belongs to an unrelated app.
 
 ## Questions
 

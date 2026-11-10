@@ -79,9 +79,9 @@ if [ -n "$APP" ]; then
   for B in "$APP" "$W" "$H"; do
     SIG=$(codesign -dv "$B" 2>&1); grep -q "flags=.*runtime" <<< "$SIG" && pass "Hardened runtime on: $(basename "$B")" || bad "Hardened runtime off: $(basename "$B")"
   done
-  WE=$(codesign -d --entitlements :- "$W" 2>/dev/null)
+  WE=$(codesign -d --entitlements - --xml "$W" 2>/dev/null)
   grep -q "com.apple.security.app-sandbox" <<< "$WE" && pass "Widget is sandboxed" || bad "Widget is not sandboxed"
-  AE=$(codesign -d --entitlements :- "$APP" 2>/dev/null)
+  AE=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)
   grep -q -E "network\.(client|server)" <<< "$AE$WE" && bad "Network entitlement in a signature" || pass "No network entitlement in any signature"
   for BIN in "$APP/Contents/MacOS/Wiggleroom" "$W/Contents/MacOS/WiggleroomWidgets" "$H"; do
     LIBS=$(otool -L "$BIN" 2>/dev/null | grep -v -E ':$' | awk '{print $1}' | grep -v -E '^/System/Library/|^/usr/lib/' || true)
