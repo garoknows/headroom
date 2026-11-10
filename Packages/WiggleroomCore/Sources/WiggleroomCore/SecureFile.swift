@@ -26,6 +26,9 @@ public struct WiggleroomPaths: Sendable {
     /// The numbers the status line script writes. Only `rate_limits` and the time.
     public var usageFile: URL { supportFolder.appendingPathComponent("usage.json") }
     public var lockFile: URL { supportFolder.appendingPathComponent(".usage.lock") }
+    /// Codex's last good numbers (only numbers), so they survive a restart. Wiggleroom never
+    /// writes anything into Codex's own folder.
+    public var codexFile: URL { supportFolder.appendingPathComponent("codex.json") }
     public var backupFolder: URL { supportFolder.appendingPathComponent("settings-backups", isDirectory: true) }
     /// Claude Code's user settings file.
     public var claudeSettings: URL { home.appendingPathComponent(".claude/settings.json") }
