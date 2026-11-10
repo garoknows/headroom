@@ -63,8 +63,15 @@ if args.first == "--iconset", args.count == 2 {
         let liveBoth = UsageFormatter.display(SampleData.snapshot(now: realNow, age: 4 * 60), context: DisplayContext(now: realNow))
         var weekOnly = SampleData.snapshot(now: realNow, age: 3 * 60); weekOnly.limits.removeFirst()
         let liveWeekly = UsageFormatter.display(weekOnly, context: DisplayContext(now: realNow))
-        for (state, display) in [("weekly-only", liveWeekly), ("both-limits", liveBoth)] {
-            let r = WindowHarness.popover(PopoverView(model: PreviewWindowModel(display: display), openSettings: {}), dark: dark)
+        var codexNow = PreviewStates.codexUsage
+        codexNow.updatedAt = realNow.addingTimeInterval(-2 * 60)
+        for i in codexNow.limits.indices { codexNow.limits[i].resetsAt = codexNow.limits[i].id == "five_hour" ? realNow.addingTimeInterval(2 * 3600 + 15 * 60) : liveBoth.row("seven_day").flatMap { if case .upcoming(let d) = $0.reset { d } else { nil } } }
+        let liveCodex = UsageFormatter.display(codexNow, context: DisplayContext(now: realNow))
+        let two = PreviewWindowModel(display: liveBoth); two.codexConnected = true; two.codexDisplay = liveCodex
+        let waiting = PreviewWindowModel(display: liveWeekly); waiting.codexConnected = true
+        for (state, model) in [("weekly-only", PreviewWindowModel(display: liveWeekly)), ("both-limits", PreviewWindowModel(display: liveBoth)),
+                               ("two-tools", two), ("codex-waiting", waiting)] {
+            let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             write(r.image, "popover-\(state)-\(sname)")
         }
     }
@@ -116,9 +123,9 @@ let weeklyOnly: UsageDisplay = {
 }
 
 /// The widget as Notification Center shows it: the card on its own rounded background.
-@MainActor func widget(_ content: CardContent, _ layout: CardLayout, _ scheme: ColorScheme) -> some View {
+@MainActor func widget(_ content: WidgetContent, _ layout: CardLayout, _ scheme: ColorScheme) -> some View {
     let size = layout == .small ? CGSize(width: 170, height: 170) : CGSize(width: 364, height: 170)
-    return UsageCard(content: content, layout: layout, live: false)
+    return WidgetCard(content: content, layout: layout, live: false)
         .padding(16)
         .frame(width: size.width, height: size.height)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Palette(scheme).card))
@@ -126,10 +133,15 @@ let weeklyOnly: UsageDisplay = {
         .padding(12)
 }
 
-let states: [(String, CardContent)] = [
-    ("normal", .usage(normal)), ("stale", .usage(stale)), ("very-stale", .usage(veryStale)),
-    ("reset-passed", .usage(resetPassed)), ("warning", .usage(warning)), ("critical", .usage(critical)),
-    ("weekly-only", .usage(weeklyOnly)), ("empty", .empty), ("unavailable", .unavailable),
+func claude(_ d: UsageDisplay) -> WidgetContent { .tool(ToolDisplay(tool: .claudeCode, display: d)) }
+let codexTool = ToolDisplay(tool: .codex, display: display(PreviewStates.codexUsage))
+let states: [(String, WidgetContent)] = [
+    ("normal", claude(normal)), ("stale", claude(stale)), ("very-stale", claude(veryStale)),
+    ("reset-passed", claude(resetPassed)), ("warning", claude(warning)), ("critical", claude(critical)),
+    ("weekly-only", claude(weeklyOnly)), ("empty", .waiting(.claudeCode)), ("unavailable", .unavailable),
+    // 0.2: Codex, and All tools (Codex at 64% is closest to a limit, so it comes first).
+    ("codex", .tool(codexTool)), ("codex-waiting", .waiting(.codex)),
+    ("all-tools", .all(ToolDisplay.closestFirst([ToolDisplay(tool: .claudeCode, display: normal), codexTool]))),
 ]
 
 MainActor.assumeIsolated {

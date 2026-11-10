@@ -163,7 +163,7 @@ public struct WidgetGalleryPicture: View {
             .frame(maxHeight: .infinity, alignment: .top)
             VStack(alignment: .leading, spacing: 10) {
                 Text("Wiggleroom").font(.system(size: 15, weight: .bold)).foregroundStyle(c.text)
-                Text("How much of your Claude plan you've used this week, and when it resets.").font(.system(size: 11)).foregroundStyle(c.secondary)
+                Text("How much of your AI coding plans you've used, and when the limits reset.").font(.system(size: 11)).foregroundStyle(c.secondary)
                     .padding(.bottom, 10)
                 HStack(alignment: .top, spacing: 30) {
                     preview(.small, width: 150, height: 150, plus: false)

@@ -60,27 +60,35 @@ import WiggleroomWindows
         }
     }
 
-    /// The popover is as tall as its content: one row and no gap for a weekly-only plan.
+    /// The popover is as tall as its content: one block per connected tool, one row and no gap
+    /// for a weekly-only plan.
     @Test(arguments: schemes)
     func popoverSizesToItsContent(dark: Bool) {
+        let weekly = PreviewWindowModel(display: PreviewStates.weeklyOnly)
+        let both = PreviewWindowModel(display: PreviewStates.bothLimits)
+        let two = PreviewWindowModel(display: PreviewStates.bothLimits)
+        two.codexConnected = true
+        two.codexDisplay = PreviewStates.codex
+        let codexWaiting = PreviewWindowModel(display: PreviewStates.weeklyOnly)
+        codexWaiting.codexConnected = true
         var heights: [String: CGFloat] = [:]
-        for (name, display) in [("weekly-only", PreviewStates.weeklyOnly), ("both", PreviewStates.bothLimits)] {
-            let model = PreviewWindowModel(display: display)
+        for (name, model) in [("weekly-only", weekly), ("both", both), ("two-tools", two), ("codex-waiting", codexWaiting)] {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             #expect(WindowHarness.overflows(r).isEmpty, "popover (\(name)): \(WindowHarness.overflows(r))")
             #expect(r.contentSize.width == WindowSizes.popoverWidth)
-            // The card is shown at its natural height, not stretched to fill the popover.
-            let natural = NSHostingView(rootView: UsageCard(content: .usage(display), layout: .popover, live: true)
+            // The cards are shown at their natural height, not stretched to fill the popover.
+            let waiting = model.connectedTools.filter { t in !model.toolDisplays.contains { $0.tool == t } }
+            let natural = NSHostingView(rootView: ToolBlocks(tools: model.toolDisplays, waiting: waiting, live: true)
                 .frame(width: WindowSizes.popoverWidth - 32).fixedSize(horizontal: false, vertical: true)).fittingSize.height
             let card = r.frames["popover: card"]?.height ?? .infinity
-            #expect(card <= natural + 1, "popover (\(name)): the card is \(card) tall but needs only \(natural)")
+            #expect(card <= natural + 1, "popover (\(name)): the cards are \(card) tall but need only \(natural)")
             // And the popover has no empty space around its content.
             let content = r.frames["popover: content"]?.height ?? .infinity
             #expect(abs(r.contentSize.height - content) <= 1, "popover (\(name)) is \(r.contentSize.height) tall for \(content) of content")
             heights[name] = r.contentSize.height
         }
-        if let one = heights["weekly-only"], let two = heights["both"] {
-            #expect(one < two, "a weekly-only popover (\(one)) should be shorter than one with both limits (\(two))")
+        if let one = heights["weekly-only"], let b = heights["both"], let t = heights["two-tools"] {
+            #expect(one < b && b < t, "popover heights should grow with what they show: \(one), \(b), \(t)")
         }
     }
 }

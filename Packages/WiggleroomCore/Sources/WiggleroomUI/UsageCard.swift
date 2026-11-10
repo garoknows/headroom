@@ -79,13 +79,15 @@ struct ResetLine: View {
 struct AsOfLine: View {
     let display: UsageDisplay
     let palette: Palette
+    /// "Codex · As of 2:41 PM" when the card names its tool there.
+    var toolName: String? = nil
 
     var body: some View {
         HStack(spacing: 4) {
             if display.freshness != .fresh {
                 Image(systemName: "clock.badge.exclamationmark").imageScale(.small)
             }
-            Text(display.asOfText)
+            Text(toolName.map { "\($0) · \(display.asOfText)" } ?? display.asOfText)
         }
         .font(.system(size: 10))
         .foregroundStyle(display.freshness == .fresh ? palette.secondary : palette.amber)
@@ -131,6 +133,7 @@ struct RowsUsage: View {
     let maxRows: Int
     /// In the widget the "as of" line sits at the bottom; in the popover it follows the rows.
     let fillHeight: Bool
+    var toolName: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -138,7 +141,7 @@ struct RowsUsage: View {
                 LimitRowView(row: row, palette: palette, live: live, dimmed: display.freshness == .veryStale)
             }
             if fillHeight { Spacer(minLength: 0) }
-            AsOfLine(display: display, palette: palette)
+            AsOfLine(display: display, palette: palette, toolName: toolName)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -148,11 +151,18 @@ struct SmallUsage: View {
     let display: UsageDisplay
     let palette: Palette
     let live: Bool
+    /// Shown above the limit's name in 0.2's widgets ("Codex", then "This week").
+    var toolName: String? = nil
 
     var body: some View {
         if let row = display.primary {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(row.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.secondary)
+            VStack(alignment: .leading, spacing: toolName == nil ? 4 : 2) {
+                if let toolName {
+                    Text(toolName).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    Text(row.title).font(.system(size: 11)).foregroundStyle(palette.secondary).lineLimit(1)
+                } else {
+                    Text(row.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.secondary)
+                }
                 Group {
                     if let pct = row.percent {
                         Text("\(pct)%").font(.system(size: 36, weight: .semibold).monospacedDigit())

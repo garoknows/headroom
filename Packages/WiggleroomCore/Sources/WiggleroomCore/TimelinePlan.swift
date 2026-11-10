@@ -35,4 +35,10 @@ public enum TimelinePlan {
         // text ("today", "as of") can sit on screen for days waiting for a far-off reset.
         return Array(Set(out.filter { $0 <= end })).sorted()
     }
+
+    /// The same, for several tools: every moment any of them needs.
+    public static func dates(for snapshots: [UsageSnapshot], now: Date, timeZone: TimeZone = .autoupdatingCurrent) -> [Date] {
+        if snapshots.isEmpty { return dates(for: nil, now: now, timeZone: timeZone) }
+        return Array(Set(snapshots.flatMap { dates(for: $0, now: now, timeZone: timeZone) })).sorted()
+    }
 }
