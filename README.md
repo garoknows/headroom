@@ -48,7 +48,11 @@ Claude Code ──(status line data)──> wiggleroom-statusline ──> your u
 
 The [install guide](docs/INSTALL.md) has pictures for each step. You need macOS 14 Sonoma or later.
 
-A Homebrew cask (`wiggleroom`) will follow once a signed release has been checked on real Macs.
+You can also install it with Homebrew:
+
+```sh
+brew install --cask garoknows/tap/wiggleroom
+```
 
 ### Tried the Headroom preview?
 

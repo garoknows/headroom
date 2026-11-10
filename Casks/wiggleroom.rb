@@ -1,6 +1,5 @@
-# Draft of the Homebrew cask for garoknows/homebrew-tap. It is NOT in the tap yet: it goes there
-# only after a real-Mac check of a signed release (lesson 19). scripts/update-cask.sh fills in
-# the version and sha256 from a release.
+# The Homebrew cask, published in garoknows/homebrew-tap (brew install --cask garoknows/tap/wiggleroom).
+# scripts/update-cask.sh fills in the version and sha256 from a release; copy the result to the tap.
 cask "wiggleroom" do
   version "0.1.1"
   sha256 "b65a8df5e5ace368028f00e7b3c117cefe02d71da9ac407ccec58a0770519024"
@@ -15,7 +14,7 @@ cask "wiggleroom" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Wiggleroom.app"
 
