@@ -27,20 +27,27 @@ import WiggleroomWindows
         }
     }
 
-    /// Each picture is laid out (not only drawn) no wider than the room it's given.
+    /// Each picture is laid out (not only drawn) no wider than the room it's given: the width of
+    /// the content, which is less when scroll bars take space.
     @Test func setupPicturesAreLaidOutInsideTheContent() {
         let r = WindowHarness.window(SetupView(model: PreviewWindowModel(), sample: PreviewStates.bothLimits, done: {}), dark: false)
-        let content = WindowSizes.setup.width - 2 * 28
+        guard let room = r.frames["setup: content"] else { Issue.record("the setup content probe never reported"); return }
         for n in 1...3 {
             // Where the picture is laid out, and where it is actually drawn after scaling.
             for name in ["setup: picture \(n)", "setup: picture \(n) drawn"] {
                 let f = r.frames[name]
                 #expect(f != nil, "\(name) probe never reported")
-                if let f { #expect(f.minX >= 27.5 && f.width <= content + 0.5, "\(name) is at x \(f.minX), \(f.width) wide; the room is \(content)") }
+                if let f {
+                    #expect(f.minX >= room.minX - 0.5 && f.maxX <= room.maxX + 0.5,
+                            "\(name) spans x \(f.minX)...\(f.maxX); the content spans \(room.minX)...\(room.maxX)")
+                }
             }
         }
-        // The widest picture (700 points) is scaled down to the room, not cut off.
-        #expect(abs((r.frames["setup: picture 3 drawn"]?.width ?? 0) - content) < 1)
+        // The widest picture (700 points) is scaled down to fill the room exactly, not cut off.
+        let laidOut = r.frames["setup: picture 3"]?.width ?? 0
+        let drawn = r.frames["setup: picture 3 drawn"]?.width ?? 0
+        #expect(abs(drawn - laidOut) < 1 && abs(laidOut - room.width) < 1,
+                "picture 3 is laid out \(laidOut) wide and drawn \(drawn) wide; the content is \(room.width) wide (window \(r.contentSize.width), visible \(r.visibleWidth))")
     }
 
     @Test(arguments: schemes, [false, true])
