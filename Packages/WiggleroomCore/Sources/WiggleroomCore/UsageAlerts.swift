@@ -36,41 +36,70 @@ public struct AlertRecord: Codable, Equatable, Sendable {
 }
 
 public struct UsageAlert: Equatable, Sendable {
+    public var tool: Tool
+    public var limitID: String
+    /// How the limit is named in the text: "weekly", "5-hour", "3-day"…
+    public var limitName: String
     public var threshold: Int
     public var percent: Int
     public var resetsAt: Date
-    public var title: String { "You've used \(percent)% of this week's Claude limit" }
 
+    /// "Codex: 90% of your weekly limit used."
+    public var title: String { "\(tool.displayName): \(percent)% of your \(limitName) limit used." }
+
+    /// "Resets Monday 1:00 AM."
     public func body(context: DisplayContext) -> String {
-        "It resets \(UsageFormatter.moment(resetsAt, context: context, short: false))."
+        "Resets \(UsageFormatter.moment(resetsAt, context: context, short: false))."
+    }
+
+    /// One notification per tool and limit, so a newer one replaces an older one for the same limit.
+    public var identifier: String { "\(tool.rawValue)-\(limitID)" }
+
+    static func name(for limit: LimitWindow) -> String {
+        switch limit.id {
+        case LimitKind.weekly: return "weekly"
+        case LimitKind.session: return "5-hour"
+        case LimitKind.spend: return "spend"
+        default:
+            if let m = limit.windowMinutes { return WindowNaming.label(windowMinutes: m) }
+            return (limit.label ?? UsageFormatter.title(for: limit.id)).lowercased()
+        }
     }
 }
 
-/// Decides when to send an alert. Only the weekly limit, at most once per threshold per week.
+/// Decides when to send alerts: for every tool and every limit, at most once per threshold per
+/// window (a window is one stretch between resets).
 public enum AlertPlanner {
-    /// Two reset times this close together belong to the same week (Claude Code's value can
+    /// Two reset times this close together belong to the same window (the reported value can
     /// move by a few seconds between replies).
     static let sameWindow: TimeInterval = 3600
 
-    /// Returns the alert to send now (if any) and the updated record to save.
-    /// Several thresholds crossed at once give one alert, for the highest.
-    /// Nothing is sent from numbers that are 6 hours old or whose week already reset.
-    public static func evaluate(snapshot: UsageSnapshot?, settings: AlertSettings, record: AlertRecord,
-                                now: Date) -> (alert: UsageAlert?, record: AlertRecord) {
-        var record = record
-        // Forget weeks that ended more than a day ago.
+    /// Returns the alerts to send now and the updated record to save. Several thresholds crossed
+    /// at once give one alert per limit, for the highest. Nothing is sent from numbers that are
+    /// 6 hours old or from a window that already reset (lesson 7: unknown means do nothing).
+    public static func evaluate(tools: [ToolSnapshot], settings: AlertSettings, record: AlertRecord,
+                                now: Date) -> (alerts: [UsageAlert], record: AlertRecord) {
+        var record = record.migrated()
+        // Forget windows that ended more than a day ago.
         record.fired = record.fired.filter { now.timeIntervalSince($0.value) < 24 * 3600 }
-        guard settings.enabled, let snapshot, let week = snapshot.limit(LimitKind.weekly),
-              let reset = week.resetsAt, reset > now,
-              Freshness.of(updatedAt: snapshot.updatedAt, now: now) != .veryStale else { return (nil, record) }
-        var highest: Int?
-        for t in settings.thresholds where week.usedPercent >= Double(t) {
-            let key = String(t)
-            if let done = record.fired[key], abs(done.timeIntervalSince(reset)) < sameWindow { continue }
-            record.fired[key] = reset
-            highest = max(highest ?? t, t)
+        guard settings.enabled else { return ([], record) }
+        var alerts: [UsageAlert] = []
+        for t in tools where Freshness.of(updatedAt: t.usage.updatedAt, now: now) != .veryStale {
+            for limit in t.usage.limits {
+                guard let reset = limit.resetsAt, reset > now else { continue }
+                var highest: Int?
+                for threshold in settings.thresholds where limit.usedPercent >= Double(threshold) {
+                    let key = AlertRecord.key(t.tool, limit.id, threshold)
+                    if let done = record.fired[key], abs(done.timeIntervalSince(reset)) < sameWindow { continue }
+                    record.fired[key] = reset
+                    highest = max(highest ?? threshold, threshold)
+                }
+                if let highest {
+                    alerts.append(UsageAlert(tool: t.tool, limitID: limit.id, limitName: UsageAlert.name(for: limit), threshold: highest,
+                                             percent: UsageFormatter.wholePercent(limit.usedPercent), resetsAt: reset))
+                }
+            }
         }
-        guard let highest else { return (nil, record) }
-        return (UsageAlert(threshold: highest, percent: UsageFormatter.wholePercent(week.usedPercent), resetsAt: reset), record)
+        return (alerts, record)
     }
 }

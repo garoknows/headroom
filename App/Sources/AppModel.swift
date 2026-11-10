@@ -254,15 +254,18 @@ final class AppModel: WindowModel {
     func evaluateAlerts() {
         guard notificationsAllowed == true else { return }
         let record = defaults.data(forKey: Keys.alertRecord).flatMap { try? JSONDecoder().decode(AlertRecord.self, from: $0) } ?? AlertRecord()
-        let result = AlertPlanner.evaluate(snapshot: snapshot, settings: alerts, record: record, now: Date())
+        var tools: [ToolSnapshot] = []
+        if let snapshot { tools.append(ToolSnapshot(tool: .claudeCode, usage: snapshot)) }
+        if codexConnected, let codexSnapshot { tools.append(ToolSnapshot(tool: .codex, usage: codexSnapshot)) }
+        let result = AlertPlanner.evaluate(tools: tools, settings: alerts, record: record, now: Date())
         if result.record != record, let d = try? JSONEncoder().encode(result.record) { defaults.set(d, forKey: Keys.alertRecord) }
-        guard let alert = result.alert else { return }
-        let content = UNMutableNotificationContent()
-        content.title = alert.title
-        content.body = alert.body(context: DisplayContext(now: Date()))
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "weekly-\(alert.threshold)", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+        for alert in result.alerts {
+            let content = UNMutableNotificationContent()
+            content.title = alert.title
+            content.body = alert.body(context: DisplayContext(now: Date()))
+            content.sound = .default
+            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: alert.identifier, content: content, trigger: nil))
+        }
     }
 
     func requestNotificationPermission() {

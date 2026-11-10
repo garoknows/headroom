@@ -4,62 +4,104 @@ import Testing
 
 @Suite struct AlertTests {
     let now = Date(timeIntervalSince1970: 1_799_990_000)
-    func snap(_ p: Double, reset: TimeInterval = 3 * 86400, age: TimeInterval = 0) -> UsageSnapshot {
+    func snap(_ p: Double, reset: TimeInterval = 3 * 86400, age: TimeInterval = 0, id: String = "seven_day") -> UsageSnapshot {
         UsageSnapshot(updatedAt: now.addingTimeInterval(-age),
-                      limits: [LimitWindow(id: "seven_day", usedPercent: p, resetsAt: now.addingTimeInterval(reset))])
+                      limits: [LimitWindow(id: id, usedPercent: p, resetsAt: now.addingTimeInterval(reset))])
+    }
+    func claude(_ s: UsageSnapshot) -> [ToolSnapshot] { [ToolSnapshot(tool: .claudeCode, usage: s)] }
+    func evaluate(_ tools: [ToolSnapshot], _ settings: AlertSettings = .default, _ record: AlertRecord = AlertRecord()) -> (alerts: [UsageAlert], record: AlertRecord) {
+        AlertPlanner.evaluate(tools: tools, settings: settings, record: record, now: now)
     }
 
-    @Test func firesOncePerWeekAtNinetyByDefault() throws {
-        var record = AlertRecord()
-        var r = AlertPlanner.evaluate(snapshot: snap(89), settings: .default, record: record, now: now)
-        #expect(r.alert == nil)
-        record = r.record
-        r = AlertPlanner.evaluate(snapshot: snap(91), settings: .default, record: record, now: now)
-        let alert = try #require(r.alert)
-        #expect(alert.threshold == 90 && alert.percent == 91)
-        #expect(alert.title == "You've used 91% of this week's Claude limit")
-        record = r.record
+    @Test func firesOncePerWindowAtNinetyByDefault() throws {
+        var r = evaluate(claude(snap(89)))
+        #expect(r.alerts.isEmpty)
+        r = evaluate(claude(snap(91)), .default, r.record)
+        let alert = try #require(r.alerts.first)
+        #expect(r.alerts.count == 1)
+        #expect(alert.threshold == 90 && alert.percent == 91 && alert.tool == .claudeCode)
+        #expect(alert.title == "Claude Code: 91% of your weekly limit used.")
         // Same week, more usage: no repeat.
-        r = AlertPlanner.evaluate(snapshot: snap(95), settings: .default, record: record, now: now)
-        #expect(r.alert == nil)
-        // Reset time moved by a few seconds (Claude Code rounding): still the same week.
-        let jitter = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 96, resetsAt: now.addingTimeInterval(3 * 86400 + 30))])
-        #expect(AlertPlanner.evaluate(snapshot: jitter, settings: .default, record: r.record, now: now).alert == nil)
+        let again = evaluate(claude(snap(95)), .default, r.record)
+        #expect(again.alerts.isEmpty)
+        // Reset time moved by a few seconds: still the same week.
+        #expect(evaluate(claude(snap(96, reset: 3 * 86400 + 30)), .default, again.record).alerts.isEmpty)
         // Next week: fires again.
-        let nextWeek = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 92, resetsAt: now.addingTimeInterval(10 * 86400))])
-        #expect(AlertPlanner.evaluate(snapshot: nextWeek, settings: .default, record: r.record, now: now).alert?.threshold == 90)
+        #expect(evaluate(claude(snap(92, reset: 10 * 86400)), .default, again.record).alerts.first?.threshold == 90)
+    }
+
+    /// The PRD's example text, in three time zones and both clocks (lesson 11).
+    @Test(arguments: [
+        (vegas, ClockStyle.twelveHour, "Resets Monday 1:00 AM."), (utc, .twentyFourHour, "Resets Monday 09:00."),
+        (tokyo, .twelveHour, "Resets Monday 6:00 PM."),
+    ])
+    func codexAlertText(tz: String, clock: ClockStyle, body: String) throws {
+        let reset = date(2027, 1, 18, 9, tz: utc)
+        let at = date(2027, 1, 14, 15, tz: tz)
+        let s = UsageSnapshot(updatedAt: at, limits: [LimitWindow(id: "seven_day", usedPercent: 90, resetsAt: reset, label: "This week", windowMinutes: 10080)])
+        let a = try #require(AlertPlanner.evaluate(tools: [ToolSnapshot(tool: .codex, usage: s)], settings: .default, record: AlertRecord(), now: at).alerts.first)
+        #expect(a.title == "Codex: 90% of your weekly limit used.")
+        #expect(a.body(context: DisplayContext(now: at, timeZone: TimeZone(identifier: tz)!, clock: clock)) == body)
+    }
+
+    /// Thresholds apply per tool and per window, at most one alert per level each.
+    @Test func everyToolAndEveryWindowOnItsOwn() {
+        let claudeBoth = UsageSnapshot(updatedAt: now, limits: [
+            LimitWindow(id: "five_hour", usedPercent: 95, resetsAt: now.addingTimeInterval(3600)),
+            LimitWindow(id: "seven_day", usedPercent: 91, resetsAt: now.addingTimeInterval(3 * 86400)),
+        ])
+        let codex = UsageSnapshot(updatedAt: now, limits: [
+            LimitWindow(id: "five_hour", usedPercent: 40, resetsAt: now.addingTimeInterval(3600), label: "5-hour", windowMinutes: 300),
+            LimitWindow(id: "seven_day", usedPercent: 93, resetsAt: now.addingTimeInterval(3 * 86400), label: "This week", windowMinutes: 10080),
+        ])
+        let tools = [ToolSnapshot(tool: .claudeCode, usage: claudeBoth), ToolSnapshot(tool: .codex, usage: codex)]
+        let r = evaluate(tools)
+        #expect(Set(r.alerts.map(\.title)) == [
+            "Claude Code: 95% of your 5-hour limit used.", "Claude Code: 91% of your weekly limit used.", "Codex: 93% of your weekly limit used.",
+        ])
+        #expect(Set(r.alerts.map(\.identifier)).count == 3)
+        #expect(evaluate(tools, .default, r.record).alerts.isEmpty)   // never twice
+        // Codex's 5-hour window passing 90 later is a new alert; nothing else repeats.
+        var later = codex; later.limits[0].usedPercent = 90
+        let next = evaluate([ToolSnapshot(tool: .claudeCode, usage: claudeBoth), ToolSnapshot(tool: .codex, usage: later)], .default, r.record)
+        #expect(next.alerts.map(\.title) == ["Codex: 90% of your 5-hour limit used."])
     }
 
     @Test func bothThresholdsCrossedAtOnceGiveOneAlert() {
         let s = AlertSettings(enabled: true, thresholds: [90, 75])
-        let r = AlertPlanner.evaluate(snapshot: snap(93), settings: s, record: AlertRecord(), now: now)
-        #expect(r.alert?.threshold == 90)
-        #expect(Set(r.record.fired.keys) == ["75", "90"])
-        #expect(AlertPlanner.evaluate(snapshot: snap(94), settings: s, record: r.record, now: now).alert == nil)
+        let r = evaluate(claude(snap(93)), s)
+        #expect(r.alerts.map(\.threshold) == [90])
+        #expect(Set(r.record.fired.keys) == [AlertRecord.key(.claudeCode, "seven_day", 75), AlertRecord.key(.claudeCode, "seven_day", 90)])
+        #expect(evaluate(claude(snap(94)), s, r.record).alerts.isEmpty)
     }
 
     @Test func seventyFiveThenNinety() {
         let s = AlertSettings(enabled: true, thresholds: [75, 90])
-        let a = AlertPlanner.evaluate(snapshot: snap(76), settings: s, record: AlertRecord(), now: now)
-        #expect(a.alert?.threshold == 75)
-        let b = AlertPlanner.evaluate(snapshot: snap(90), settings: s, record: a.record, now: now)
-        #expect(b.alert?.threshold == 90)
+        let a = evaluate(claude(snap(76)), s)
+        #expect(a.alerts.map(\.threshold) == [75])
+        #expect(evaluate(claude(snap(90)), s, a.record).alerts.map(\.threshold) == [90])
     }
 
     @Test func offSwitchAndSafePaths() {
         let off = AlertSettings(enabled: false, thresholds: [90])
-        #expect(AlertPlanner.evaluate(snapshot: snap(99), settings: off, record: AlertRecord(), now: now).alert == nil)
+        #expect(evaluate(claude(snap(99)), off).alerts.isEmpty)
         // Old numbers, a passed reset, or no data never alert (lesson 7: unknown means do nothing).
-        #expect(AlertPlanner.evaluate(snapshot: snap(99, age: 7 * 3600), settings: .default, record: AlertRecord(), now: now).alert == nil)
-        #expect(AlertPlanner.evaluate(snapshot: snap(99, reset: -60), settings: .default, record: AlertRecord(), now: now).alert == nil)
-        #expect(AlertPlanner.evaluate(snapshot: nil, settings: .default, record: AlertRecord(), now: now).alert == nil)
-        let sessionOnly = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "five_hour", usedPercent: 99, resetsAt: now.addingTimeInterval(60))])
-        #expect(AlertPlanner.evaluate(snapshot: sessionOnly, settings: .default, record: AlertRecord(), now: now).alert == nil)
+        #expect(evaluate(claude(snap(99, age: 7 * 3600))).alerts.isEmpty)
+        #expect(evaluate(claude(snap(99, reset: -60))).alerts.isEmpty)
+        #expect(evaluate([]).alerts.isEmpty)
+        let noReset = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 99, resetsAt: nil)])
+        #expect(evaluate(claude(noReset)).alerts.isEmpty)
+    }
+
+    /// After the upgrade, an alert 0.1 already sent this week isn't sent again.
+    @Test func oneDotOneRecordIsRespected() {
+        let old = AlertRecord(fired: ["90": now.addingTimeInterval(3 * 86400)])
+        #expect(evaluate(claude(snap(95)), .default, old).alerts.isEmpty)
     }
 
     @Test func oldRecordsAreForgotten() {
-        let rec = AlertRecord(fired: ["90": now.addingTimeInterval(-2 * 86400)])
-        #expect(AlertPlanner.evaluate(snapshot: nil, settings: .default, record: rec, now: now).record.fired.isEmpty)
+        let rec = AlertRecord(fired: [AlertRecord.key(.codex, "seven_day", 90): now.addingTimeInterval(-2 * 86400), "90": now.addingTimeInterval(-2 * 86400)])
+        #expect(evaluate([], .default, rec).record.fired.isEmpty)
     }
 
     @Test func settingsAreCleaned() {
