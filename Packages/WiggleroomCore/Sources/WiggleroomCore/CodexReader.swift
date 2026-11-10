@@ -80,24 +80,18 @@ public enum CodexReader {
 
     // MARK: Finding the files
 
-    /// Plain `rollout-*.jsonl` files changed in the last 7 days, newest first. Looks in the
-    /// `YYYY/MM/DD` folders from 8 days ago to 2 days ahead (Codex names folders by local date,
-    /// so late in the evening the newest file can be in "tomorrow's" folder), and directly in
-    /// `sessions/` for older Codex versions. Symlinks are never followed.
+    /// Plain `rollout-*.jsonl` files changed in the last 7 days, newest first. Codex files a
+    /// session under the `YYYY/MM/DD` folder of the day it *started*, and a resumed session keeps
+    /// writing there weeks later, so every date folder is looked at and files are judged by when
+    /// they were last written (only folder listings and file dates; no file is opened here).
+    /// Loose files directly in `sessions/` (older Codex versions) count too. Symlinks are skipped.
     static func candidateFiles(in sessions: URL, now: Date) -> [(URL, Date)] {
         let fm = FileManager.default
         let oldest = now.addingTimeInterval(-lookBack)
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC")!
         var folders: [URL] = [sessions]
         for year in subfolders(sessions, digits: 4) {
             for month in subfolders(year, digits: 2) {
-                for day in subfolders(month, digits: 2) {
-                    let parts = [year, month, day].map { Int($0.lastPathComponent) ?? 0 }
-                    guard let d = cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
-                          d >= now.addingTimeInterval(-lookBack - 2 * 86400), d <= now.addingTimeInterval(2 * 86400) else { continue }
-                    folders.append(day)
-                }
+                folders += subfolders(month, digits: 2)
             }
         }
         var out: [(URL, Date)] = []

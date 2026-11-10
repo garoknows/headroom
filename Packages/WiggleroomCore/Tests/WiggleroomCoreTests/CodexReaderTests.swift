@@ -203,6 +203,15 @@ import Testing
         #expect(read(h2).status == .noSessions)
     }
 
+    /// Codex files a session under the day it started. A session resumed weeks later is still
+    /// written to that old folder, so files count by when they were last written, not by folder.
+    @Test func resumedSessionInAnOldFolderIsFound() throws {
+        let h = CodexHome()
+        let started = now.addingTimeInterval(-46 * 86400)
+        h.rollout([Self.tokenCount(at: now.addingTimeInterval(-60), rateLimits: Self.limits())], day: started, modified: now)
+        #expect(read(h).status == .ok)
+    }
+
     /// Finished sessions that Codex compressed (`.jsonl.zst`) are never opened (D117).
     @Test func compressedSessionsAreIgnored() {
         let h = CodexHome()
