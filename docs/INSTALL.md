@@ -54,14 +54,28 @@ You can also put the widget on your desktop: right-click the desktop, choose **E
 
 ## 4. Check the numbers
 
-Compare the widget with **Settings > Usage** on claude.ai. They should match within a point. If the widget shows "Connect Wiggleroom to Claude Code", send another message in Claude Code and wait a few seconds.
+Compare the widget with **Settings > Usage** on claude.ai. They should match within a point (Wiggleroom rounds up, so it never shows less than you've used). If the widget shows "Connect Wiggleroom to Claude Code", send another message in Claude Code and wait a few seconds.
+
+## 5. Add Codex (optional)
+
+If you also use Codex with a ChatGPT plan:
+
+1. Open Wiggleroom's Settings (open Wiggleroom again from Applications) and find **Tools**.
+2. Click **Connect** next to Codex. It says "Connected. Your numbers appear after Codex's next reply."
+3. Run one prompt in Codex. Within a few seconds Wiggleroom shows Codex's 5-hour and weekly limits. Compare them with Codex's own limits display (`/status` in the Codex CLI); they should match within a point.
+4. Right-click the widget, choose **Edit Widget**, and set **Tool** to **All tools** to see both tools in one widget, or to **Codex** for Codex only. You can also add a second widget for each tool.
+
+What Connect does: nothing in Codex changes. Wiggleroom starts watching Codex's session folder (`~/.codex/sessions/`) and, after each Codex reply, reads only the usage numbers from the end of the newest session log, read-only. [How Codex is read](TOOLS.md#how-wiggleroom-treats-codexs-log).
+
+If Settings says "Codex not found on this Mac", Codex hasn't been installed or run yet. Run Codex once, then click **Check Again**. If it says "Codex isn't reporting plan limits", you're signed in to Codex with an API key; plan limits are only reported when you sign in with ChatGPT.
 
 ## Options
 
 In Wiggleroom's Settings:
 
-- **Alerts:** a notification when you pass 90% of your weekly limit (and 75% if you turn it on). Once per week each.
-- **Show in the menu bar:** your weekly percent next to a small gauge. Click it for the full card.
+- **Tools:** connect or disconnect Claude Code and Codex. "More tools" links to [which tools are supported and which are coming](TOOLS.md).
+- **Alerts:** a notification when a tool passes 90% of a limit (and 75% if you turn it on), for every connected tool and every limit, at most once per level, per tool, per limit. For example: "Codex: 90% of your weekly limit used. Resets Monday 1:00 AM."
+- **Show in the menu bar:** a weekly percent next to a small gauge. **Menu bar shows** picks whose: **Highest of my tools** (the default; when you use both tools, a C or X tag says which), **Claude Code** or **Codex**. Click it for every tool's card.
 - **Open at login:** keeps the widget current after a restart. On by default after setup.
 - **Reveal Data File** and **Delete All Wiggleroom Data**.
 
@@ -69,16 +83,20 @@ In Wiggleroom's Settings:
 
 | You see | It means |
 | --- | --- |
-| "As of 2:41 PM" in grey | Numbers from Claude Code's last reply at 2:41 PM. |
+| "As of 2:41 PM" in grey | Numbers from the tool's last reply at 2:41 PM. The medium widget names the tool on this line ("Codex · As of 2:41 PM"). |
 | "As of" in amber | The numbers are over 30 minutes old. Usage elsewhere (claude.ai, the Claude app) isn't counted until your next Claude Code reply. |
 | Dimmed bars | The numbers are over 6 hours old. |
 | "Reset at 1:00 AM, waiting for new numbers" | That limit has reset; fresh numbers come with your next Claude Code reply. |
 | "Connect Wiggleroom to Claude Code" | No numbers yet. Connect, then send a message in Claude Code. |
+| "Codex" with "Connect Codex in Wiggleroom's Settings" | The widget is set to Codex, but there are no Codex numbers yet. Connect Codex (step 5), then run a Codex prompt. |
+| One row per tool, titled with each tool's name | The widget's Tool is All tools. The tool closest to its limit comes first. |
 | "This copy of Wiggleroom can't share numbers with widgets" | You're running an unsigned build. Use the menu bar item, or install the signed release. |
 
 ## Uninstall
 
 1. In Wiggleroom's Settings, click **Disconnect** (your previous status line comes back), or **Delete All Wiggleroom Data** (also disconnects).
 2. Click **Quit Wiggleroom** at the bottom of Settings, then drag Wiggleroom to the Trash.
+
+Codex needs nothing undone: Wiggleroom never changed anything in Codex.
 
 Using Homebrew? `brew uninstall --cask wiggleroom` removes the app (your previous status line keeps working even if you skip step 1), and `--zap` also removes Wiggleroom's files.

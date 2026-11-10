@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wiggleroom: Claude plan usage on your Mac</title>
-<meta name="description" content="A free, open-source Mac widget that shows how much of your Claude plan's weekly and 5-hour limits you've used, and when they reset. No sign-in, no network, no tokens.">
+<title>Wiggleroom: every AI coding limit in one glance</title>
+<meta name="description" content="A free, open-source Mac widget that shows how much of your Claude Code and Codex plans' weekly and 5-hour limits you've used, and when they reset. No sign-in, no network, no tokens.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -58,24 +58,24 @@
     <img src="icon.svg" alt="">
     <h1>Wiggleroom</h1>
   </header>
-  <p class="tag">See how much of your Claude plan you've used this week, and when it resets, right in your Mac's Notification Center.</p>
+  <p class="tag">Every AI coding limit in one glance. See how much of your Claude Code and Codex plans you've used, and when the limits reset, right in your Mac's Notification Center.</p>
 
   <div class="hero">
-    <div class="widget" role="img" aria-label="Example widget: current session 23% used, this week 41% used">
+    <div class="widget" role="img" aria-label="Example widget, All tools: Codex 64% used this week, Claude Code 41% used this week">
       <div class="row">
-        <div class="top"><span class="label">Current session</span><span class="pct">23% used</span></div>
-        <div class="reset">Resets in 3 hr 12 min</div>
-        <div class="bar"><span style="width:23%"></span></div>
+        <div class="top"><span class="label">Codex</span><span class="pct">64% used</span></div>
+        <div class="reset">This week · resets Mon 1:00 AM</div>
+        <div class="bar"><span style="width:64%"></span></div>
       </div>
       <div class="row">
-        <div class="top"><span class="label">This week</span><span class="pct">41% used</span></div>
-        <div class="reset">Resets Monday 1:00 AM</div>
+        <div class="top"><span class="label">Claude Code</span><span class="pct">41% used</span></div>
+        <div class="reset">This week · resets Mon 1:00 AM</div>
         <div class="bar"><span style="width:41%"></span></div>
       </div>
       <div class="foot">As of 2:41 PM</div>
     </div>
     <div>
-      <p>Wiggleroom is a free, open-source widget for people who use <strong>Claude Code</strong> on a Pro, Max or Ultra plan. It shows the same numbers as the usage page in Claude's settings, without opening anything.</p>
+      <p>Wiggleroom is a free, open-source widget for people who use <strong>Claude Code</strong> on a Pro, Max or Ultra plan, <strong>Codex</strong> with a ChatGPT plan, or both. It shows the same numbers as each tool's own usage display, without opening anything.</p>
       <div class="cta">
         <a class="btn" href="https://github.com/garoknows/wiggleroom/releases/latest">Download for Mac</a>
         <a class="btn ghost" href="https://github.com/garoknows/wiggleroom">Source code</a>
@@ -86,29 +86,32 @@
 
   <h2>Private by design</h2>
   <div class="grid">
-    <div class="card"><h3>No sign-in</h3><p>Wiggleroom never asks for your Claude account and never reads tokens, passwords or browser cookies.</p></div>
+    <div class="card"><h3>No sign-in</h3><p>Wiggleroom never asks for your Claude or ChatGPT account and never reads tokens, passwords or browser cookies.</p></div>
     <div class="card"><h3>No internet</h3><p>There is no network code in the app or the widget. Your numbers never leave your Mac.</p></div>
-    <div class="card"><h3>Keeps almost nothing</h3><p>Only the percent used, the reset times and when they were updated. No prompts, folders, costs or account details.</p></div>
+    <div class="card"><h3>Keeps almost nothing</h3><p>Only the percent used, the reset times and when they were updated, for each tool. No prompts, folders, costs or account details.</p></div>
   </div>
 
   <h2>How it works</h2>
   <p>Every time Claude Code gets a reply, it hands your plan's usage numbers to its <em>status line</em>, a small command you can set up to show information under the prompt. Wiggleroom adds a tiny helper there that saves just those numbers and then runs your existing status line exactly as before.</p>
+  <p><strong>Codex</strong> writes a usage event into its own session log on your Mac after each reply. When you connect Codex, Wiggleroom reads only those numbers from the end of the newest log, read-only, and changes nothing in Codex.</p>
   <ol>
-    <li>Install Wiggleroom and open it.</li>
+    <li>Install Wiggleroom and open it (or <code>brew install --cask garoknows/tap/wiggleroom</code>).</li>
     <li>Click <strong>Connect to Claude Code</strong>. Wiggleroom backs up your Claude Code settings first, and <strong>Disconnect</strong> puts them back.</li>
-    <li>Add the Wiggleroom widget to Notification Center (click the date and time in the menu bar, then <strong>Edit Widgets</strong>).</li>
+    <li>Using Codex too? In Settings, under <strong>Tools</strong>, click <strong>Connect</strong> next to Codex.</li>
+    <li>Add the Wiggleroom widget to Notification Center (click the date and time in the menu bar, then <strong>Edit Widgets</strong>). Right-click it and choose <strong>Edit Widget</strong> to show Claude Code, Codex or All tools.</li>
   </ol>
+  <p>Wiggleroom adds a tool only when it hands out its limits in a way its maker supports. <a href="https://github.com/garoknows/wiggleroom/blob/main/docs/TOOLS.md">See which tools are supported and which are coming.</a></p>
 
   <h2>Good to know</h2>
   <ul>
-    <li><strong>Numbers update when Claude Code replies.</strong> Chats on claude.ai or in the Claude app use the same limits, but they show up in Wiggleroom at your next Claude Code reply. The "As of" time tells you how fresh the numbers are, and turns amber after 30 minutes.</li>
-    <li><strong>Reset times are always right,</strong> because Claude Code sends the exact moment each limit resets.</li>
-    <li>Optional alerts when you pass 90% of your weekly limit (or a level you choose), once per week.</li>
-    <li>Optional menu bar item with your weekly percent.</li>
+    <li><strong>Numbers update when a tool replies.</strong> Use on claude.ai, in the Claude app or in Codex's cloud counts toward the same limits, but shows up in Wiggleroom at the tool's next reply on your Mac. The "As of" time tells you how fresh the numbers are, and turns amber after 30 minutes.</li>
+    <li><strong>Reset times are always right,</strong> because both tools report the exact moment each limit resets.</li>
+    <li>Optional alerts when a tool passes 90% of a limit (or a level you choose), once per level, per tool, per limit.</li>
+    <li>Optional menu bar item with the weekly percent of whichever tool is closest to its limit.</li>
   </ul>
 
   <footer>
-    Wiggleroom is an independent open-source project (MIT License). It is not made by, affiliated with or endorsed by Anthropic. "Claude" is used only to describe what Wiggleroom works with.
+    Wiggleroom is an independent open-source project (MIT License). It is not made by, affiliated with or endorsed by Anthropic or OpenAI. "Claude", "Claude Code" and "Codex" are used only to describe what Wiggleroom works with.
   </footer>
 </main>
 </body>

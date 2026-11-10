@@ -1,12 +1,12 @@
 # The Homebrew cask, published in garoknows/homebrew-tap (brew install --cask garoknows/tap/wiggleroom).
 # scripts/update-cask.sh fills in the version and sha256 from a release; copy the result to the tap.
 cask "wiggleroom" do
-  version "0.1.1"
-  sha256 "b65a8df5e5ace368028f00e7b3c117cefe02d71da9ac407ccec58a0770519024"
+  version "0.2.0"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
   url "https://github.com/garoknows/wiggleroom/releases/download/v#{version}/Wiggleroom-#{version}.dmg"
   name "Wiggleroom"
-  desc "Claude plan usage and reset times in Notification Center"
+  desc "Claude Code and Codex plan limits in Notification Center"
   homepage "https://garoknows.github.io/wiggleroom/"
 
   livecheck do
