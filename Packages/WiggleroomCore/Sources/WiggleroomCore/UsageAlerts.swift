@@ -18,8 +18,21 @@ public struct AlertSettings: Codable, Equatable, Sendable {
 
 /// Which alerts already went out: for each threshold, the reset time of the week it fired in.
 public struct AlertRecord: Codable, Equatable, Sendable {
+    /// Key: "<tool>|<limit id>|<threshold>", value: the reset time of the window it fired in.
     public var fired: [String: Date]
     public init(fired: [String: Date] = [:]) { self.fired = fired }
+
+    public static func key(_ tool: Tool, _ limit: String, _ threshold: Int) -> String { "\(tool.rawValue)|\(limit)|\(threshold)" }
+
+    /// 0.1 kept only Claude Code's weekly alerts, keyed by the threshold alone ("90"). They
+    /// become Claude Code weekly keys, so an alert already sent this week isn't sent again.
+    public func migrated() -> AlertRecord {
+        var out: [String: Date] = [:]
+        for (k, v) in fired {
+            if k.contains("|") { out[k] = v } else if let t = Int(k) { out[Self.key(.claudeCode, LimitKind.weekly, t)] = v }
+        }
+        return AlertRecord(fired: out)
+    }
 }
 
 public struct UsageAlert: Equatable, Sendable {

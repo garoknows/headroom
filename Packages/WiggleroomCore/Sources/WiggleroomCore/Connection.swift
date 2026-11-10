@@ -93,7 +93,10 @@ public enum DataEraser {
 
 /// Files in the App Group container shared by the app and the widget.
 public enum AppGroupFiles {
+    /// 0.1's file: Claude Code only. Still written during 0.2.x so a downgrade keeps working.
     public static let snapshotName = "snapshot.json"
+    /// 0.2's file: one snapshot per connected tool.
+    public static let toolsName = "snapshots.json"
     public static let infoPlistKey = "WiggleroomAppGroup"
 
     /// The group name from the app's or widget's Info.plist, or nil in builds without one
@@ -114,6 +117,48 @@ public enum AppGroupFiles {
         guard let s = SecureFile.readSmallFile(folder.appendingPathComponent(snapshotName)).flatMap(UsageSnapshot.decode),
               SnapshotPolicy.isPlausible(s, now: now) else { return nil }
         return s
+    }
+
+    /// Every tool's numbers the widget can show. Reads 0.2's per-tool file; if there isn't one
+    /// yet (the app hasn't run since the upgrade), reads 0.1's file as Claude Code, so widgets
+    /// placed before the upgrade keep showing their numbers. Implausible entries are dropped.
+    public static func readTools(in folder: URL, now: Date = Date()) -> [ToolSnapshot] {
+        if let f = SecureFile.readSmallFile(folder.appendingPathComponent(toolsName)).flatMap(ToolsFile.decode) {
+            return f.tools.filter { SnapshotPolicy.isPlausible($0.usage, now: now) }
+        }
+        // Upgraded from 0.1 and the 0.2 app hasn't written its file yet.
+        return readSnapshot(in: folder, now: now).map { [ToolSnapshot(tool: .claudeCode, usage: $0)] } ?? []
+    }
+
+    /// Writes 0.2's per-tool file (only if it changed) and keeps 0.1's file up to date for
+    /// Claude Code. Each tool follows the same rule as 0.1: never replace good numbers with bad
+    /// or older ones. A tool missing from `tools` is removed (it was disconnected).
+    /// Returns true if anything changed, so the widget should reload.
+    @discardableResult
+    public static func publishTools(_ tools: [ToolSnapshot], to folder: URL, now: Date = Date()) -> Bool {
+        let current = SecureFile.readSmallFile(folder.appendingPathComponent(toolsName)).flatMap(ToolsFile.decode)
+        var out: [ToolSnapshot] = []
+        for tool in Tool.allCases {
+            let have = current?.usage(tool)
+            let candidate = tools.first { $0.tool == tool }?.usage
+            guard candidate != nil else { continue }   // not connected: leave it out
+            if SnapshotPolicy.shouldReplace(current: have, with: candidate, now: now), let candidate {
+                out.append(ToolSnapshot(tool: tool, usage: candidate))
+            } else if let have, SnapshotPolicy.isPlausible(have, now: now) {
+                out.append(ToolSnapshot(tool: tool, usage: have))
+            }
+        }
+        var changed = false
+        let file = ToolsFile(tools: out)
+        if file != current, let data = try? file.encoded() {
+            do {
+                try SecureFile.atomicWrite(data, to: folder.appendingPathComponent(toolsName), mode: 0o600)
+                changed = true
+            } catch {}
+        }
+        // 0.1's file, for Claude Code only (downgrade safety).
+        if publish(tools.first { $0.tool == .claudeCode }?.usage, to: folder, now: now) { changed = true }
+        return changed
     }
 
     /// Copies `candidate` into the group folder if it's good and newer (lesson 12).

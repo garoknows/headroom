@@ -11,12 +11,21 @@ public struct LimitWindow: Codable, Equatable, Sendable {
     public var outOfRange: Bool
     /// When this limit resets (an absolute moment, stored as UTC seconds). Nil when unknown.
     public var resetsAt: Date?
+    /// The row title for tools that name windows by length (Codex: "5-hour", "This week").
+    /// Nil for Claude Code, whose titles come from `id`. Left out of the file when nil, so the
+    /// status line program's file keeps exactly the 0.1 keys.
+    public var label: String?
+    /// The window's length, when the tool reports it (Codex).
+    public var windowMinutes: Int?
 
-    public init(id: String, usedPercent: Double, outOfRange: Bool = false, resetsAt: Date?) {
+    public init(id: String, usedPercent: Double, outOfRange: Bool = false, resetsAt: Date?,
+                label: String? = nil, windowMinutes: Int? = nil) {
         self.id = id
         self.usedPercent = usedPercent
         self.outOfRange = outOfRange
         self.resetsAt = resetsAt
+        self.label = label
+        self.windowMinutes = windowMinutes
     }
 }
 
@@ -27,6 +36,8 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
     /// The only keys a snapshot file may contain. A test checks the script's output against these.
     public static let allowedKeys: Set<String> = ["format", "updatedAt", "limits"]
     public static let allowedLimitKeys: Set<String> = ["id", "usedPercent", "outOfRange", "resetsAt"]
+    /// Extra keys a limit may have in the App Group's per-tool file (never in usage.json).
+    public static let optionalLimitKeys: Set<String> = ["label", "windowMinutes"]
 
     public var format: Int
     /// When Claude Code last handed these numbers over.
@@ -68,6 +79,7 @@ public enum LimitKind {
     public static func isSupported(_ id: String) -> Bool {
         guard isWellFormed(id) else { return false }
         if id == session || id == weekly || id == spend { return true }
+        if id.hasPrefix("window_") { return id.count > 7 && id.dropFirst(7).allSatisfy(\.isNumber) }
         return id.hasPrefix(weekly + "_") && id.count > weekly.count + 1
     }
 
