@@ -17,11 +17,18 @@ SDK="$PLAT/SDKs/MacOSX.sdk"
 export TMPDIR="$B/tmp"; mkdir -p "$TMPDIR"
 COMMON=(-swift-version 6 -sdk "$SDK" -module-cache-path "$B/modcache" -target "$(uname -m)-apple-macos14.0"
         -F "$PLAT/Library/Frameworks" -I "$PLAT/usr/lib" -L "$PLAT/usr/lib"
-        -plugin-path "$TC/usr/lib/swift/host/plugins/testing" -plugin-path "$TC/usr/lib/swift/host/plugins")
+        -plugin-path "$TC/usr/lib/swift/host/plugins/testing" -plugin-path "$PLAT/usr/lib/swift/host/plugins"
+        -plugin-path "$TC/usr/lib/swift/host/plugins")
 
 # The library, built for testing.
 "$SWIFTC" "${COMMON[@]}" -Onone -parse-as-library -enable-testing -emit-library -static -emit-module -module-name WiggleroomCore \
   -emit-module-path "$B/WiggleroomCore.swiftmodule" "$HERE"/Sources/WiggleroomCore/*.swift -o "$B/libWiggleroomCore.a"
+
+# The SwiftUI cards and the windows, for the window layout tests.
+"$SWIFTC" "${COMMON[@]}" -Onone -parse-as-library -emit-library -static -emit-module -module-name WiggleroomUI -I "$B" \
+  -emit-module-path "$B/WiggleroomUI.swiftmodule" "$HERE"/Sources/WiggleroomUI/*.swift -o "$B/libWiggleroomUI.a"
+"$SWIFTC" "${COMMON[@]}" -Onone -parse-as-library -emit-library -static -emit-module -module-name WiggleroomWindows -I "$B" \
+  -emit-module-path "$B/WiggleroomWindows.swiftmodule" "$HERE"/Sources/WiggleroomWindows/*.swift -o "$B/libWiggleroomWindows.a"
 
 # The real command, built the way it ships (optimized), for the end-to-end tests.
 "$SWIFTC" "${COMMON[@]}" -O -I "$B" -L "$B" -lWiggleroomCore -module-name wiggleroom_statusline \
@@ -32,7 +39,7 @@ import Foundation
 import Testing
 @main struct Runner { static func main() async { exit(await Testing.__swiftPMEntryPoint()) } }
 SWIFT
-"$SWIFTC" "${COMMON[@]}" -Onone -parse-as-library -I "$B" -L "$B" -lWiggleroomCore -module-name WiggleroomCoreTests \
+"$SWIFTC" "${COMMON[@]}" -Onone -parse-as-library -I "$B" -L "$B" -lWiggleroomCore -lWiggleroomUI -lWiggleroomWindows -module-name WiggleroomCoreTests \
   -Xlinker -rpath -Xlinker "$PLAT/Library/Frameworks" -Xlinker -rpath -Xlinker "$PLAT/usr/lib" \
-  "$HERE"/Tests/WiggleroomCoreTests/*.swift "$HERE"/Tests/StatuslineTests/*.swift "$B/runner.swift" -o "$B/wiggleroom-core-tests"
+  "$HERE"/Tests/WiggleroomCoreTests/*.swift "$HERE"/Tests/StatuslineTests/*.swift "$HERE"/Tests/WindowLayoutTests/*.swift "$B/runner.swift" -o "$B/wiggleroom-core-tests"
 WIGGLEROOM_TEST_TMP="$TMPDIR" WIGGLEROOM_STATUSLINE_BIN="$B/wiggleroom-statusline" "$B/wiggleroom-core-tests" "$@"

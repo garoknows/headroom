@@ -41,6 +41,11 @@ Claude Code ──(status line data)──> wiggleroom-statusline ──> your u
 3. Click **Connect to Claude Code**, then send any message in Claude Code.
 4. Add the widget: click the date and time in the menu bar, scroll down, click **Edit Widgets**, search for Wiggleroom, and click the green **+**.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/window-setup-dark.png">
+  <img src="docs/images/window-setup-light.png" width="420" alt="The Set Up Wiggleroom window, with step 1 Connect to Claude Code and step 2 Add the widget to Notification Center.">
+</picture>
+
 The [install guide](docs/INSTALL.md) has pictures for each step. You need macOS 14 Sonoma or later.
 
 A Homebrew cask (`wiggleroom`) will follow once a signed release has been checked on real Macs.

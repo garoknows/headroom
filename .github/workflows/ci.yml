@@ -27,9 +27,21 @@ jobs:
           xcodebuild -version
           swift --version
 
-      - name: Core tests (parser, status line program end to end, settings editor, no-network scan)
+      - name: Core tests (parser, status line program end to end, settings editor, no-network scan, window layout)
         timeout-minutes: 15
         run: swift test -c release --package-path Packages/WiggleroomCore
+
+      # Lesson 26: every window and the popover drawn at its real size with the same Xcode
+      # that builds the release, kept with the run for checking by eye.
+      - name: Render every window and the popover
+        run: tools/render-docs.sh --windows "$RUNNER_TEMP/window-renders"
+
+      - name: Keep the window renders with this run
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: window-renders
+          path: ${{ runner.temp }}/window-renders
+          retention-days: 14
 
       - name: Version, cask and picture checks
         run: |

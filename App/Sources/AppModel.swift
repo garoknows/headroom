@@ -2,13 +2,14 @@ import AppKit
 import Combine
 import WiggleroomCore
 import WiggleroomUI
+import WiggleroomWindows
 import ServiceManagement
 import UserNotifications
 import WidgetKit
 
 /// Everything the app's windows and menu show, and every action they can take.
 @MainActor
-final class AppModel: ObservableObject {
+final class AppModel: WindowModel {
     let paths = WiggleroomPaths.currentUser()
     /// The App Group folder shared with the widget. Nil in unsigned builds.
     let groupFolder = AppGroupFiles.folder()
@@ -231,6 +232,16 @@ final class AppModel: ObservableObject {
         case .problem(let why): "Not watching: \(why)"
         }
     }
+
+    var isWatching: Bool { watcherState == .watching }
+
+    var canShareWithWidget: Bool { groupFolder != nil }
+
+    func openNotificationSettings() {
+        if let u = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(u) }
+    }
+
+    func quit() { NSApp.terminate(nil) }
 
     var version: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"

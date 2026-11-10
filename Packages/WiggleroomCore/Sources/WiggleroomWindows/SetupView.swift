@@ -3,23 +3,32 @@ import WiggleroomUI
 import SwiftUI
 
 /// The first-run window: connect, add the widget (with annotated pictures), choose options.
-struct SetupView: View {
-    @ObservedObject var model: AppModel
+public struct SetupView<Model: WindowModel>: View {
+    @ObservedObject var model: Model
     let done: () -> Void
+    /// The invented numbers in the widget gallery picture (fixed in renders and tests).
+    let fixedSample: UsageDisplay?
     @State private var openAtLogin = true
 
-    var sample: UsageDisplay {
-        UsageFormatter.display(SampleData.snapshot(now: Date(), age: 60), context: DisplayContext(now: Date()))
+    public init(model: Model, sample: UsageDisplay? = nil, done: @escaping () -> Void) {
+        self.model = model
+        self.fixedSample = sample
+        self.done = done
     }
 
-    var body: some View {
+    var sample: UsageDisplay {
+        fixedSample ?? UsageFormatter.display(SampleData.snapshot(now: Date(), age: 60), context: DisplayContext(now: Date()))
+    }
+
+    public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 14) {
-                    WiggleroomMark().frame(width: 52, height: 52)
+                    WiggleroomMark().frame(width: 52, height: 52).layoutProbe("setup: title icon")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Welcome to Wiggleroom").font(.title.bold())
                         Text("See how much of your Claude plan you've used, right in Notification Center.").foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
@@ -30,25 +39,30 @@ struct SetupView: View {
                         if model.isConnected && !model.connectedElsewhere {
                             Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                         } else {
-                            Button("Connect to Claude Code") { model.connect() }.buttonStyle(.borderedProminent)
+                            Button("Connect to Claude Code") { model.connect() }.buttonStyle(.borderedProminent).layoutProbe("setup: Connect button")
                         }
                     }
-                    if let m = model.lastMessage { Text(m).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+                    if let m = model.lastMessage {
+                        Text(m).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     Text("Then send any message in Claude Code. The numbers appear after its reply.")
                         .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 step(2, "Add the widget to Notification Center") {
                     caption(1, "Click the date and time at the right end of the menu bar.")
-                    MenuBarPicture()
+                    FitToWidth(MenuBarPicture.size, probe: "setup: picture 1") { MenuBarPicture() }
                     caption(2, "Scroll to the bottom of Notification Center and click Edit Widgets.")
-                    NotificationCenterPicture()
+                    FitToWidth(NotificationCenterPicture.size, probe: "setup: picture 2") { NotificationCenterPicture() }
                     caption(3, "Type Wiggleroom in the search field.")
                     caption(4, "Pick a size, then click the green + (or drag the widget into Notification Center). Click Done.")
-                    WidgetGalleryPicture(sample: sample).scaleEffect(0.82, anchor: .topLeading).frame(height: 232, alignment: .topLeading)
-                    if model.groupFolder == nil {
+                    FitToWidth(WidgetGalleryPicture.size, probe: "setup: picture 3") { WidgetGalleryPicture(sample: sample) }
+                    if !model.canShareWithWidget {
                         Label("This copy of Wiggleroom isn't signed, so its widget can't receive numbers. Use the menu bar item instead, or install the signed release.", systemImage: "info.circle")
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
@@ -69,9 +83,14 @@ struct SetupView: View {
                     .keyboardShortcut(.defaultAction)
                 }
             }
+            // Measured inside the padding: the content itself must fit what the window shows.
+            .layoutProbe("setup: content")
             .padding(28)
+            // Leading-aligned at the window's width, so a child that is ever too wide sticks out
+            // on the right (and fails the layout test) instead of shifting everything left.
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 620, height: 720)
+        .frame(width: WindowSizes.setup.width, height: WindowSizes.setup.height)
         .onAppear { model.refreshConnection() }
     }
 
@@ -79,7 +98,7 @@ struct SetupView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Text("\(n)").font(.headline).foregroundStyle(.white).frame(width: 24, height: 24).background(Circle().fill(Color.accentColor))
-                Text(title).font(.title3.bold())
+                Text(title).font(.title3.bold()).fixedSize(horizontal: false, vertical: true)
             }
             content()
         }
@@ -88,7 +107,7 @@ struct SetupView: View {
     func caption(_ n: Int, _ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             StepMarker(n)
-            Text(text)
+            Text(text).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

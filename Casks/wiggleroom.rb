@@ -2,8 +2,8 @@
 # only after a real-Mac check of a signed release (lesson 19). scripts/update-cask.sh fills in
 # the version and sha256 from a release.
 cask "wiggleroom" do
-  version "0.1.0"
-  sha256 "823b953032a402c59b65743ccd82a39386a6410026f110dff73942d90c406ade"
+  version "0.1.1"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
   url "https://github.com/garoknows/wiggleroom/releases/download/v#{version}/Wiggleroom-#{version}.dmg"
   name "Wiggleroom"

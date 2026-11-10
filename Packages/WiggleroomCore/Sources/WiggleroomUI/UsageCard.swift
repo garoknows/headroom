@@ -32,7 +32,7 @@ public struct UsageCard: View {
         let p = Palette(scheme)
         Group {
             switch content {
-            case .usage(let d): layout == .small ? AnyView(SmallUsage(display: d, palette: p, live: live)) : AnyView(RowsUsage(display: d, palette: p, live: live, maxRows: layout == .medium ? 2 : 6))
+            case .usage(let d): layout == .small ? AnyView(SmallUsage(display: d, palette: p, live: live)) : AnyView(RowsUsage(display: d, palette: p, live: live, maxRows: layout == .medium ? 2 : 6, fillHeight: layout == .medium))
             case .empty: EmptyCard(layout: layout, palette: p)
             case .unavailable: UnavailableCard(layout: layout, palette: p)
             }
@@ -129,13 +129,15 @@ struct RowsUsage: View {
     let palette: Palette
     let live: Bool
     let maxRows: Int
+    /// In the widget the "as of" line sits at the bottom; in the popover it follows the rows.
+    let fillHeight: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(display.rows.prefix(maxRows)) { row in
                 LimitRowView(row: row, palette: palette, live: live, dimmed: display.freshness == .veryStale)
             }
-            Spacer(minLength: 0)
+            if fillHeight { Spacer(minLength: 0) }
             AsOfLine(display: display, palette: palette)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

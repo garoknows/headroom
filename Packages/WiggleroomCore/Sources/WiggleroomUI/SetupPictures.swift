@@ -66,6 +66,7 @@ struct ScreenColors {
 /// Picture 1: click the date and time at the right end of the menu bar.
 public struct MenuBarPicture: View {
     @Environment(\.colorScheme) private var scheme
+    public static let size = CGSize(width: 520, height: 120)
     public init() {}
     public var body: some View {
         let c = ScreenColors(scheme)
@@ -87,7 +88,7 @@ public struct MenuBarPicture: View {
             .frame(height: 30)
             .background(c.bar)
         }
-        .frame(width: 520, height: 120)
+        .frame(width: Self.size.width, height: Self.size.height)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("The menu bar, with the date and time at its right end marked as step 1.")
@@ -97,6 +98,7 @@ public struct MenuBarPicture: View {
 /// Picture 2: at the bottom of Notification Center, click Edit Widgets.
 public struct NotificationCenterPicture: View {
     @Environment(\.colorScheme) private var scheme
+    public static let size = CGSize(width: 520, height: 250)
     public init() {}
     public var body: some View {
         let c = ScreenColors(scheme)
@@ -121,7 +123,7 @@ public struct NotificationCenterPicture: View {
             .frame(width: 230)
             .padding(.top, 14).padding(.trailing, 14)
         }
-        .frame(width: 520, height: 250)
+        .frame(width: Self.size.width, height: Self.size.height)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Notification Center, with the Edit Widgets button at the bottom marked as step 2.")
@@ -132,6 +134,7 @@ public struct NotificationCenterPicture: View {
 public struct WidgetGalleryPicture: View {
     @Environment(\.colorScheme) private var scheme
     let sample: UsageDisplay
+    public static let size = CGSize(width: 700, height: 270)
     public init(sample: UsageDisplay) { self.sample = sample }
 
     public var body: some View {
@@ -169,7 +172,7 @@ public struct WidgetGalleryPicture: View {
             }
             .padding(18)
         }
-        .frame(width: 700, height: 270)
+        .frame(width: Self.size.width, height: Self.size.height)
         .background(c.panel)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .ignore)

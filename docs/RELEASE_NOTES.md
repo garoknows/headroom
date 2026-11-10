@@ -1,6 +1,15 @@
-# Wiggleroom 0.1.0
+# Wiggleroom 0.1.1
 
-**The first release of Wiggleroom.** It has been tested automatically but not yet on many Macs. Please report anything odd at github.com/garoknows/wiggleroom/issues.
+**A fix release.** Fixed: the setup and Settings windows were cut off at the edges, the menu bar popover had an empty gap, and reset times now show the weekday.
+
+- **Setup window:** the widget pictures now fit the window, so nothing is cut off on the left or right.
+- **Settings window:** every section fits inside the window, including when scroll bars are set to always show.
+- **Menu bar popover:** it is now exactly as tall as what it shows. A plan with only a weekly limit shows one row with no empty space.
+- **Reset times:** a reset up to 7 days away now reads like Claude's own usage page, for example "Resets Monday 1:00 AM" instead of "Resets Nov 16, 1:00 AM".
+
+To update: quit Wiggleroom from its menu, then replace it in Applications with the new version. You don't need to connect again.
+
+Wiggleroom has been tested automatically but not yet on many Macs. Please report anything odd at github.com/garoknows/wiggleroom/issues.
 
 Wiggleroom shows how much of your Claude plan's usage limits you've used, and when each one resets, in a Notification Center widget, with an optional menu bar item.
 
@@ -13,9 +22,10 @@ Wiggleroom shows how much of your Claude plan's usage limits you've used, and wh
 - Optional menu bar item with your weekly percent.
 - "Delete all Wiggleroom data" in Settings.
 
-## Changes
+## Changelog
 
-- Renamed from Headroom, a one-day unsigned preview, because another Mac app already uses that name. If you tried Headroom, Connect takes over its place in your status line setting and keeps your own status line. See "Tried the Headroom preview?" in the install guide.
+- **0.1.1:** Fixed: the setup and Settings windows were cut off at the edges, the menu bar popover had an empty gap, and reset times now show the weekday.
+- **0.1.0:** First release. Renamed from Headroom, a one-day unsigned preview, because another Mac app already uses that name. If you tried Headroom, Connect takes over its place in your status line setting and keeps your own status line. See "Tried the Headroom preview?" in the install guide.
 
 ## Privacy
 

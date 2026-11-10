@@ -5,6 +5,7 @@
 import AppKit
 import WiggleroomCore
 import WiggleroomUI
+import WiggleroomWindows
 import SwiftUI
 
 let args = Array(CommandLine.arguments.dropFirst())
@@ -26,6 +27,52 @@ if args.first == "--iconset", args.count == 2 {
         }
     }
     print("wrote iconset to \(dir.path)")
+    exit(0)
+}
+
+/// The windows and the popover as the app opens them (WindowFactory), at their real size, drawn
+/// by AppKit. Lesson 26: each picture is checked by eye; the layout tests check the numbers.
+@MainActor func renderWindows(to dir: URL, all: Bool) {
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    func write(_ rep: NSBitmapImageRep?, _ name: String) {
+        guard let data = WindowHarness.png(rep) else { print("FAILED \(name)"); return }
+        try! data.write(to: dir.appendingPathComponent(name + ".png"))
+        print("wrote \(name).png \(rep!.pixelsWide)x\(rep!.pixelsHigh)")
+    }
+    let models = PreviewStates.models()
+    for (dark, sname) in [(false, "light"), (true, "dark")] {
+        // The docs show the first-run setup window; the check renders show every state.
+        for (state, model) in all ? models : [models[0]] {
+            let r = WindowHarness.window(SetupView(model: model, sample: PreviewStates.bothLimits, done: {}), title: "Set Up Wiggleroom", dark: dark)
+            write(r.image, all ? "window-setup-\(state)-\(sname)" : "window-setup-\(sname)")
+            if all { write(r.fullImage, "window-setup-\(state)-\(sname)-full") }
+        }
+        guard all else { continue }
+        for (state, model) in models {
+            let r = WindowHarness.window(SettingsView(model: model, openSetup: {}), title: "Wiggleroom Settings", dark: dark)
+            write(r.image, "window-settings-\(state)-\(sname)")
+            write(r.fullImage, "window-settings-\(state)-\(sname)-full")
+        }
+        let legacy = WindowHarness.window(SettingsView(model: models[1].1, openSetup: {}), title: "Wiggleroom Settings", dark: dark, legacyScrollers: true)
+        write(legacy.image, "window-settings-connected-\(sname)-scrollbars-always")
+        let legacySetup = WindowHarness.window(SetupView(model: models[0].1, sample: PreviewStates.bothLimits, done: {}), title: "Set Up Wiggleroom", dark: dark, legacyScrollers: true)
+        write(legacySetup.image, "window-setup-first-run-\(sname)-scrollbars-always")
+        // The popover's session countdown ticks from the real clock, so these use invented
+        // numbers around the real time instead of the fixed January 2027 moment.
+        let realNow = Date()
+        let liveBoth = UsageFormatter.display(SampleData.snapshot(now: realNow, age: 4 * 60), context: DisplayContext(now: realNow))
+        var weekOnly = SampleData.snapshot(now: realNow, age: 3 * 60); weekOnly.limits.removeFirst()
+        let liveWeekly = UsageFormatter.display(weekOnly, context: DisplayContext(now: realNow))
+        for (state, display) in [("weekly-only", liveWeekly), ("both-limits", liveBoth)] {
+            let r = WindowHarness.popover(PopoverView(model: PreviewWindowModel(display: display), openSettings: {}), dark: dark)
+            write(r.image, "popover-\(state)-\(sname)")
+        }
+    }
+}
+
+// `render-docs --windows <folder>` renders every window state, for checking by eye.
+if args.first == "--windows", args.count == 2 {
+    MainActor.assumeIsolated { renderWindows(to: URL(fileURLWithPath: args[1], isDirectory: true), all: true) }
     exit(0)
 }
 
@@ -96,4 +143,5 @@ MainActor.assumeIsolated {
         save(WidgetGalleryPicture(sample: normal).padding(16), "setup-3-widget-gallery-\(sname)", scheme: scheme)
     }
     save(WiggleroomMark(iconGrid: true).frame(width: 512, height: 512), "icon", scheme: .light)
+    renderWindows(to: out, all: false)
 }

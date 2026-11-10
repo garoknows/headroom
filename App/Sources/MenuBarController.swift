@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import WiggleroomCore
+import WiggleroomWindows
 import WiggleroomUI
 import SwiftUI
 
@@ -11,14 +12,13 @@ final class MenuBarController {
     private let model: AppModel
     private let openSettings: () -> Void
     private var item: NSStatusItem?
-    private let popover = NSPopover()
+    private var popover = NSPopover()
     private var cancellables: Set<AnyCancellable> = []
 
     init(model: AppModel, openSettings: @escaping () -> Void) {
         self.model = model
         self.openSettings = openSettings
-        popover.behavior = .transient
-        popover.contentViewController = NSHostingController(rootView: PopoverView(model: model, openSettings: { [weak self] in
+        popover = WindowFactory.makePopover(root: PopoverView(model: model, openSettings: { [weak self] in
             self?.popover.performClose(nil)
             openSettings()
         }))
@@ -81,30 +81,5 @@ final class MenuBarController {
         }
         img.isTemplate = true
         return img
-    }
-}
-
-struct PopoverView: View {
-    @ObservedObject var model: AppModel
-    let openSettings: () -> Void
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            UsageCard(content: model.cardContent, layout: .popover, live: true)
-                .frame(minHeight: 120)
-            Divider()
-            Label(model.watcherText, systemImage: model.watcherState == .watching ? "dot.radiowaves.left.and.right" : "exclamationmark.triangle")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            HStack {
-                Button("Settings…", action: openSettings)
-                Spacer()
-                Button("Quit Wiggleroom") { NSApp.terminate(nil) }
-            }
-        }
-        .padding(16)
-        .frame(width: 320)
-        .background(Palette(scheme).card)
     }
 }

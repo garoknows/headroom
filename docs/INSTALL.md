@@ -18,6 +18,13 @@ Then continue below. If you skip these steps, Wiggleroom handles it anyway: **Co
 2. Open the file and drag **Wiggleroom** onto **Applications**.
 3. Open **Wiggleroom** from your Applications folder. (Opening it straight from the download window works too, but Wiggleroom will ask you to move it to Applications before connecting, because Claude Code needs a place that won't move.)
 
+The setup window appears. It walks you through the next two steps:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/window-setup-dark.png">
+  <img src="images/window-setup-light.png" width="620" alt="The Set Up Wiggleroom window: a welcome line, step 1 Connect to Claude Code with its button, and step 2 Add the widget to Notification Center with the first two annotated pictures. The rest of the window scrolls.">
+</picture>
+
 Wiggleroom has no Dock icon. It runs quietly in the background. To get back to it later, open it again from Applications: its Settings window appears.
 
 ## 2. Connect to Claude Code

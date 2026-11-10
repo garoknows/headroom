@@ -35,9 +35,11 @@ for ARCH in $ARCHS; do
     -emit-module-path "$O/WiggleroomCore.swiftmodule" "$P"/WiggleroomCore/*.swift -o "$O/libWiggleroomCore.a"
   "$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name WiggleroomUI -I "$O" \
     -emit-module-path "$O/WiggleroomUI.swiftmodule" "$P"/WiggleroomUI/*.swift -o "$O/libWiggleroomUI.a"
+  "$SWIFTC" "${COMMON[@]}" -parse-as-library -emit-library -static -emit-module -module-name WiggleroomWindows -I "$O" \
+    -emit-module-path "$O/WiggleroomWindows.swiftmodule" "$P"/WiggleroomWindows/*.swift -o "$O/libWiggleroomWindows.a"
   "$SWIFTC" "${COMMON[@]}" -I "$O" -L "$O" -lWiggleroomCore -module-name wiggleroom_statusline \
     "$P"/wiggleroom-statusline/main.swift -o "$O/wiggleroom-statusline"
-  "$SWIFTC" "${COMMON[@]}" -I "$O" -L "$O" -lWiggleroomCore -lWiggleroomUI -module-name Wiggleroom \
+  "$SWIFTC" "${COMMON[@]}" -I "$O" -L "$O" -lWiggleroomCore -lWiggleroomUI -lWiggleroomWindows -module-name Wiggleroom \
     "$ROOT"/App/Sources/*.swift -o "$O/Wiggleroom"
   "$SWIFTC" "${COMMON[@]}" -parse-as-library -application-extension -I "$O" -L "$O" -lWiggleroomCore -lWiggleroomUI \
     -module-name WiggleroomWidgets "$ROOT"/Widgets/Sources/*.swift -o "$O/WiggleroomWidgets"

@@ -1,5 +1,6 @@
 import AppKit
 import WiggleroomCore
+import WiggleroomWindows
 import SwiftUI
 
 /// Wiggleroom runs in the background (no Dock icon). Opening the app again shows Settings.
@@ -50,12 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeWindow<V: View>(title: String, root: V) -> NSWindow {
-        let w = NSWindow(contentViewController: NSHostingController(rootView: root))
-        w.title = title
-        w.styleMask = [.titled, .closable, .miniaturizable]
-        w.isReleasedWhenClosed = false
-        w.center()
-        return w
+        WindowFactory.makeWindow(title: title, root: root)
     }
 
     private func present(_ w: NSWindow?) {

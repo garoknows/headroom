@@ -39,12 +39,15 @@ else pass "Widget reads only the App Group snapshot (lesson 10)"; fi
 APPLY=$(grep -rln 'ClaudeSettingsEditor.apply' "${SRC[@]}")
 [ "$APPLY" = "$CORE/WiggleroomCore/Connection.swift" ] && pass "Claude Code settings are changed only through Connection (connect/disconnect)" \
   || bad "ClaudeSettingsEditor.apply used outside Connection.swift: $APPLY"
-CALLS=$(grep -rn -E '\.(connect|disconnect)\(\)' "$ROOT/App/Sources" | sed -E "s|^$ROOT/||; s/:[0-9]+:/: /" | sed -E 's/ +/ /g')
+# The windows live in the WiggleroomWindows module (so they can be tested at their real size).
+WIN="$CORE/WiggleroomWindows"
+CALLS=$(grep -rn -E '\.(connect|disconnect)\(\)' "$ROOT/App/Sources" "$WIN" | sed -E "s|^$ROOT/||; s/:[0-9]+:/: /" | sed -E 's/ +/ /g')
 # The three button actions, the two AppModel methods they call, Delete All Data, and --disconnect.
+W=Packages/WiggleroomCore/Sources/WiggleroomWindows
 WANT_CALLS=$(printf '%s\n' \
-  'App/Sources/SetupView.swift: Button("Connect to Claude Code") { model.connect() }.buttonStyle(.borderedProminent)' \
-  "App/Sources/SettingsView.swift: model.connect()" \
-  'App/Sources/SettingsView.swift: Button("Disconnect") { model.disconnect() }' \
+  "$W/SetupView.swift: Button(\"Connect to Claude Code\") { model.connect() }.buttonStyle(.borderedProminent).layoutProbe(\"setup: Connect button\")" \
+  "$W/SettingsView.swift: model.connect()" \
+  "$W/SettingsView.swift: Button(\"Disconnect\") { model.disconnect() }" \
   "App/Sources/AppModel.swift: report(connectionHelper.connect())" \
   "App/Sources/AppModel.swift: report(connectionHelper.disconnect())" \
   "App/Sources/AppModel.swift: switch connectionHelper.disconnect() {" \
