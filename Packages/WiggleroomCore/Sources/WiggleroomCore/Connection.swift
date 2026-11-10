@@ -62,8 +62,9 @@ public struct Connection: Sendable {
     }
 }
 
-/// "Delete all Wiggleroom data": the numbers file, its folder and the copy the widget reads.
-/// Backups of Claude Code's settings are the user's own settings, so they are left alone.
+/// "Delete all Wiggleroom data": the numbers files (Claude Code's and Codex's), their folder and
+/// the copies the widget reads. Backups of Claude Code's settings are the user's own settings,
+/// so they are left alone, and nothing in Codex's own folder (`~/.codex`) is ever touched.
 public enum DataEraser {
     @discardableResult
     public static func eraseAll(paths: WiggleroomPaths, appGroupFolder: URL?, extraFiles: [URL] = []) -> [String] {
@@ -73,7 +74,10 @@ public enum DataEraser {
         // same rule. Never "Application Support/Headroom", which belongs to an unrelated app.
         var targets = contents(of: paths.supportFolder, keeping: paths.backupFolder.lastPathComponent)
             + contents(of: paths.headroomPreviewFolder, keeping: paths.backupFolder.lastPathComponent)
-        if let g = appGroupFolder { targets.append(g.appendingPathComponent(AppGroupFiles.snapshotName)) }
+        if let g = appGroupFolder {
+            targets.append(g.appendingPathComponent(AppGroupFiles.snapshotName))
+            targets.append(g.appendingPathComponent(AppGroupFiles.toolsName))
+        }
         targets += extraFiles
         for t in targets where fm.fileExists(atPath: t.path) || (try? fm.destinationOfSymbolicLink(atPath: t.path)) != nil {
             do { try fm.removeItem(at: t) } catch { problems.append("\(t.lastPathComponent): \(error.localizedDescription)") }

@@ -120,3 +120,57 @@ import Testing
         #expect(d.rows.map(\.title) == ["5-hour", "This week"])
     }
 }
+
+@Suite struct ToolChoiceTests {
+    let now = date(2027, 1, 14, 14, 45, tz: vegas)
+    var ctx: DisplayContext { DisplayContext(now: now, timeZone: TimeZone(identifier: vegas)!, clock: .twelveHour) }
+
+    func tool(_ t: Tool, session: Double?, week: Double?) -> ToolDisplay {
+        var limits: [LimitWindow] = []
+        if let session { limits.append(LimitWindow(id: "five_hour", usedPercent: session, resetsAt: now.addingTimeInterval(3600))) }
+        if let week { limits.append(LimitWindow(id: "seven_day", usedPercent: week, resetsAt: now.addingTimeInterval(4 * 86400))) }
+        return ToolDisplay(tool: t, display: UsageFormatter.display(UsageSnapshot(updatedAt: now, limits: limits), context: ctx))
+    }
+
+    @Test func toolsClosestToALimitComeFirst() {
+        let claude = tool(.claudeCode, session: 20, week: 41)
+        let codex = tool(.codex, session: 88, week: 10)
+        #expect(ToolDisplay.closestFirst([claude, codex]).map(\.tool) == [.codex, .claudeCode])
+        #expect(ToolDisplay.closestFirst([tool(.codex, session: 5, week: 41), tool(.claudeCode, session: 5, week: 41)]).map(\.tool) == [.claudeCode, .codex])
+    }
+
+    @Test func menuBarHighestUsesTheWeeklyPercent() {
+        let claude = tool(.claudeCode, session: 95, week: 41)
+        let codex = tool(.codex, session: 5, week: 60)
+        #expect(MenuBarChoice.highest.pick(from: [claude, codex])?.tool == .codex)
+        #expect(MenuBarChoice.claudeCode.pick(from: [claude, codex])?.tool == .claudeCode)
+        #expect(MenuBarChoice.codex.pick(from: [claude])?.tool == nil)
+        #expect(MenuBarChoice.highest.pick(from: [])?.tool == nil)
+        // A tie goes to Claude Code, and a tool without numbers never wins.
+        #expect(MenuBarChoice.highest.pick(from: [tool(.codex, session: 1, week: 41), tool(.claudeCode, session: 1, week: 41)])?.tool == .claudeCode)
+        #expect(MenuBarChoice.highest.pick(from: [tool(.codex, session: nil, week: nil), claude])?.tool == .claudeCode)
+    }
+}
+
+@Suite struct MenuBarTextTests {
+    let now = date(2027, 1, 14, 14, 45, tz: vegas)
+
+    func tool(_ t: Tool, week: Double) -> ToolDisplay {
+        let s = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: week, resetsAt: now.addingTimeInterval(4 * 86400))])
+        return ToolDisplay(tool: t, display: UsageFormatter.display(s, context: DisplayContext(now: now, timeZone: TimeZone(identifier: vegas)!, clock: .twelveHour)))
+    }
+
+    @Test func highestShowsATagOnlyWhenThereIsAChoice() {
+        let both = MenuBarText.make(choice: .highest, picked: tool(.codex, week: 63.2), connectedTools: 2)
+        #expect(both.title == " 64% X")
+        #expect(both.tooltip == "Wiggleroom: Codex, This week 64% used")
+        let one = MenuBarText.make(choice: .highest, picked: tool(.claudeCode, week: 41), connectedTools: 1)
+        #expect(one.title == " 41%")   // same as 0.1 when only Claude Code is connected
+        #expect(MenuBarText.make(choice: .claudeCode, picked: tool(.claudeCode, week: 41), connectedTools: 2).title == " 41%")
+    }
+
+    @Test func noNumbersYet() {
+        #expect(MenuBarText.make(choice: .codex, picked: nil, connectedTools: 2) == ("", "Wiggleroom: no numbers from Codex yet"))
+        #expect(MenuBarText.make(choice: .highest, picked: nil, connectedTools: 0) == ("", "Wiggleroom: no numbers yet"))
+    }
+}

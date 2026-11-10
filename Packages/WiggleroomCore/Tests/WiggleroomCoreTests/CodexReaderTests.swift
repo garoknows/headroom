@@ -373,3 +373,44 @@ import Testing
         #expect(row.title == "This week")
     }
 }
+
+/// Delete All Wiggleroom Data covers Codex's numbers and the per-tool widget file, and never
+/// touches anything in Codex's own folder.
+@Suite struct CodexDataTests {
+    @Test func deleteAllDataCoversCodexButNeverTouchesCodexFolder() throws {
+        let home = makeTempHome()
+        let paths = WiggleroomPaths(home: home)
+        let now = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
+        let usage = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 4, resetsAt: now.addingTimeInterval(86400), label: "This week", windowMinutes: 10080)])
+        try CodexStore.save(usage, paths: paths)
+        #expect(CodexStore.load(paths: paths, now: now) == usage)
+        // Codex's own files, which must survive.
+        let codex = CodexPaths(home: home)
+        let day = codex.sessionsFolder.appendingPathComponent("2027/01/14", isDirectory: true)
+        try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+        let rollout = day.appendingPathComponent("rollout-invented.jsonl")
+        try Data("{}\n".utf8).write(to: rollout)
+        let config = codex.codexFolder.appendingPathComponent("config.toml")
+        try Data("# invented\n".utf8).write(to: config)
+        let group = makeTempHome()
+        AppGroupFiles.publishTools([ToolSnapshot(tool: .codex, usage: usage)], to: group, now: now)
+        #expect(FileManager.default.fileExists(atPath: group.appendingPathComponent(AppGroupFiles.toolsName).path))
+
+        DataEraser.eraseAll(paths: paths, appGroupFolder: group)
+
+        #expect(!FileManager.default.fileExists(atPath: paths.codexFile.path))
+        #expect(!FileManager.default.fileExists(atPath: group.appendingPathComponent(AppGroupFiles.toolsName).path))
+        #expect(try Data(contentsOf: rollout) == Data("{}\n".utf8))
+        #expect(try Data(contentsOf: config) == Data("# invented\n".utf8))
+    }
+
+    @Test func statusTexts() {
+        #expect(CodexStatusText.text(connected: false, installed: false, status: .notInstalled, watching: false, hasNumbers: false) == CodexStatusText.notFound)
+        #expect(CodexStatusText.text(connected: false, installed: true, status: .ok, watching: false, hasNumbers: false) == "Not connected")
+        #expect(CodexStatusText.text(connected: true, installed: true, status: .waitingForReply, watching: true, hasNumbers: false) == CodexStatusText.waiting)
+        #expect(CodexStatusText.text(connected: true, installed: true, status: .ok, watching: true, hasNumbers: true) == "Connected")
+        #expect(CodexStatusText.text(connected: true, installed: true, status: .noPlanLimits, watching: true, hasNumbers: false) == CodexStatusText.noPlanLimits)
+        // A format change keeps the last numbers but says so.
+        #expect(CodexStatusText.text(connected: true, installed: true, status: .formatChanged, watching: true, hasNumbers: true) == CodexStatusText.formatChanged)
+    }
+}

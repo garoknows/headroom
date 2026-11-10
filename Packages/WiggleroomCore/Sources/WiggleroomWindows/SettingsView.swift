@@ -13,36 +13,68 @@ public struct SettingsView<Model: WindowModel>: View {
         self.openSetup = openSetup
     }
 
+    var codexSymbol: String {
+        if !model.codexInstalled { return "questionmark.circle" }
+        if !model.codexConnected { return "circle" }
+        return model.codexStatusText == "Connected" ? "checkmark.circle.fill" : "clock"
+    }
+
     public var body: some View {
         // Sections laid out by Wiggleroom itself (0.1.0 used a grouped Form, whose width and
         // margins depend on the Xcode version that built the app and on the scroll bar setting).
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                SettingsSection("Claude Code") {
-                    ConnectionStatusRow(model: model)
-                    HStack {
+                SettingsSection("Tools") {
+                    ToolRow("Claude Code") {
                         if model.isConnected && !model.connectedElsewhere {
                             Button("Disconnect…") { confirmDisconnect = true }
                         } else {
-                            Button(model.connectedElsewhere ? "Update Connection" : "Connect to Claude Code") {
+                            Button(model.connectedElsewhere ? "Update Connection" : "Connect") {
                                 model.connect()
                             }
                             .buttonStyle(.borderedProminent)
                         }
-                        Spacer(minLength: 0)
+                    } status: {
+                        ConnectionStatusRow(model: model).wrapping()
+                        if let message = model.lastMessage {
+                            Text(message).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                                .wrapping()
+                        }
                     }
-                    if let message = model.lastMessage {
-                        Text(message).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    .layoutProbe("settings: Claude Code row")
+                    Divider()
+                    ToolRow("Codex") {
+                        if model.codexConnected {
+                            Button("Disconnect") { model.disconnectCodex() }
+                        } else if model.codexInstalled {
+                            Button("Connect") { model.connectCodex() }.buttonStyle(.borderedProminent)
+                        } else {
+                            Button("Check Again") { model.checkCodexAgain() }
+                        }
+                    } status: {
+                        Label(model.codexStatusText, systemImage: codexSymbol)
+                            .foregroundStyle(model.codexConnected && model.codexStatusText == "Connected" ? Color.green : Color.secondary)
                             .wrapping()
+                        if model.codexConnected {
+                            Text("Wiggleroom reads only the usage numbers from the end of Codex's newest session log. It changes nothing in Codex.")
+                                .font(.caption).foregroundStyle(.secondary).wrapping()
+                        }
                     }
+                    .layoutProbe("settings: Codex row")
+                    Divider()
+                    Text(.init("More tools: Wiggleroom adds a tool when it offers an official way to read its limits. [See which are coming.](https://github.com/garoknows/wiggleroom/blob/main/docs/TOOLS.md)"))
+                        .font(.caption).foregroundStyle(.secondary).wrapping()
                 }
 
                 SettingsSection("Status") {
                     Label(model.watcherText, systemImage: model.isWatching ? "checkmark.circle" : "exclamationmark.triangle")
                         .wrapping()
-                    Text(model.display?.asOfText ?? "No numbers from Claude Code yet. They arrive with your next Claude Code reply.")
+                    Text(model.display.map { "Claude Code: \($0.asOfText)" } ?? "No numbers from Claude Code yet. They arrive with your next Claude Code reply.")
                         .foregroundStyle(.secondary)
                         .wrapping()
+                    if let codex = model.toolDisplays.first(where: { $0.tool == .codex }) {
+                        Text("Codex: \(codex.display.asOfText)").foregroundStyle(.secondary).wrapping()
+                    }
                     if !model.canShareWithWidget {
                         Label("This copy of Wiggleroom isn't signed, so it can't share numbers with widgets. The menu bar item still works. Install the signed release to use the widget.", systemImage: "info.circle")
                             .foregroundStyle(.secondary)
@@ -51,7 +83,7 @@ public struct SettingsView<Model: WindowModel>: View {
                 }
 
                 SettingsSection("Alerts") {
-                    SwitchRow("Alert me about my weekly limit", isOn: $model.alerts.enabled)
+                    SwitchRow("Alert me when a tool nears a limit", isOn: $model.alerts.enabled)
                         .layoutProbe("settings: alerts toggle")
                     ForEach(AlertSettings.choices, id: \.self) { level in
                         SwitchRow("When I pass \(level)%", isOn: Binding(
@@ -73,19 +105,31 @@ public struct SettingsView<Model: WindowModel>: View {
                         }
                         .layoutProbe("settings: notifications off row")
                     }
-                    Text("At most one alert per level each week, and only from fresh numbers.").font(.caption).foregroundStyle(.secondary)
+                    Text("For every connected tool and every limit (5-hour and weekly). At most one alert per level, per tool, per limit, and only from fresh numbers.").font(.caption).foregroundStyle(.secondary)
                         .wrapping()
                 }
 
                 SettingsSection("General") {
                     SwitchRow("Show in the menu bar", isOn: $model.showMenuBar)
+                    HStack {
+                        Text("Menu bar shows").wrapping()
+                        Spacer(minLength: 8)
+                        Picker("Menu bar shows", selection: $model.menuBarChoice) {
+                            ForEach(MenuBarChoice.allCases, id: \.self) { Text($0.title).tag($0) }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                    }
+                    .disabled(!model.showMenuBar)
+                    .layoutProbe("settings: menu bar picker")
                     SwitchRow("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
                         .layoutProbe("settings: Open at login toggle")
                     Button("Show How to Add the Widget…", action: openSetup)
                 }
 
                 SettingsSection("Your data") {
-                    Text("Wiggleroom keeps only the percent used, the reset times, the limit names and when they were updated. It has no network code and never reads your Claude sign-in.")
+                    Text("Wiggleroom keeps only the percent used, the reset times, the limit names and when they were updated, for each tool. It has no network code and never reads your Claude or Codex sign-in.")
                         .foregroundStyle(.secondary)
                         .wrapping()
                     HStack {
@@ -204,5 +248,29 @@ extension View {
     /// Text that wraps onto more lines instead of making its row wider.
     func wrapping() -> some View {
         fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// One tool in the Tools section: its name, its one button on the right, its status below.
+struct ToolRow<Action: View, Status: View>: View {
+    let name: String
+    let button: Action
+    let status: Status
+
+    init(_ name: String, @ViewBuilder button: () -> Action, @ViewBuilder status: () -> Status) {
+        self.name = name
+        self.button = button()
+        self.status = status()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                Text(name).font(.body.weight(.semibold)).wrapping()
+                Spacer(minLength: 0)
+                button
+            }
+            status
+        }
     }
 }

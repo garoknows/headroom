@@ -15,6 +15,11 @@ public final class PreviewWindowModel: WindowModel {
     @Published public var launchAtLogin = true
     @Published public var alerts: AlertSettings = .default
     @Published public var showMenuBar = true
+    @Published public var menuBarChoice: MenuBarChoice = .default
+    @Published public var codexConnected = false
+    @Published public var codexInstalled = true
+    @Published public var codexStatusText = "Not connected"
+    @Published public var codexDisplay: UsageDisplay?
     public var setupDone = false
     public let version = "0.1.1 (2)"
 
@@ -34,6 +39,16 @@ public final class PreviewWindowModel: WindowModel {
     }
     public var connectedElsewhere: Bool { false }
     public var cardContent: CardContent { display.map { .usage($0) } ?? .empty }
+    public var toolDisplays: [ToolDisplay] {
+        var out: [ToolDisplay] = []
+        if let display { out.append(ToolDisplay(tool: .claudeCode, display: display)) }
+        if codexConnected, let codexDisplay { out.append(ToolDisplay(tool: .codex, display: codexDisplay)) }
+        return ToolDisplay.closestFirst(out)
+    }
+    public var connectedTools: [Tool] {
+        (isConnected || display != nil ? [Tool.claudeCode] : []) + (codexConnected ? [.codex] : [])
+    }
+
     public var watcherText: String { isWatching ? "Watching for new numbers from Claude Code" : "Not watching: the data folder can't be read" }
 
     public func connect() {}
@@ -45,6 +60,9 @@ public final class PreviewWindowModel: WindowModel {
     public func deleteAllData() {}
     public func openNotificationSettings() {}
     public func quit() {}
+    public func connectCodex() {}
+    public func disconnectCodex() {}
+    public func checkCodexAgain() {}
 }
 
 /// Invented situations for the renders and the layout tests, all at one fixed moment:
@@ -70,19 +88,40 @@ public enum PreviewStates {
         return UsageFormatter.display(s, context: context)
     }
 
+    /// Invented Codex numbers: 5-hour 12%, this week 64%.
+    public static var codexUsage: UsageSnapshot {
+        UsageSnapshot(updatedAt: now.addingTimeInterval(-2 * 60), limits: [
+            LimitWindow(id: LimitKind.session, usedPercent: 12, resetsAt: now.addingTimeInterval(2 * 3600 + 15 * 60), label: "5-hour", windowMinutes: 300),
+            LimitWindow(id: LimitKind.weekly, usedPercent: 64, resetsAt: SampleData.snapshot(now: now, timeZone: timeZone).limits[1].resetsAt, label: "This week", windowMinutes: 10080),
+        ])
+    }
+
+    public static var codex: UsageDisplay { UsageFormatter.display(codexUsage, context: context) }
+
     /// The longest message Connect can show, with a long file path that has no spaces to wrap at.
     public static let longConnectMessage = "Connected. Wiggleroom replaced the Headroom preview in your status line setting. Your own status line still runs after Wiggleroom. A backup of your previous settings is at ~/Library/Application_Support/io.github.garoknows.wiggleroom/settings-backups/settings-2027-01-14T22-45-00Z-an-invented-very-long-file-name.json."
 
     static let helper = "/Applications/Wiggleroom.app/Contents/MacOS/wiggleroom-statusline"
 
     /// The window states worth looking at, by name.
+    /// Tools connected: 0 ("first-run"), 1 ("connected", Claude Code only), 2 ("two-tools"),
+    /// plus Codex missing and the longest Codex message.
     public static func models() -> [(String, PreviewWindowModel)] {
-        [
-            ("first-run", PreviewWindowModel(connection: .notConnected(hasOtherStatusLine: false), display: nil, notificationsAllowed: nil)),
-            ("connected", PreviewWindowModel(connection: .connected(StatuslineCommand(executablePath: helper, previous: "bash ~/.claude/statusline.sh")),
-                                             lastMessage: longConnectMessage, display: weeklyOnly)),
-            ("unsigned-alerts-off", PreviewWindowModel(connection: .notConnected(hasOtherStatusLine: true), canShareWithWidget: false,
-                                                       display: bothLimits, notificationsAllowed: false)),
-        ]
+        let claude = ClaudeSettingsEditor.Status.connected(StatuslineCommand(executablePath: helper, previous: "bash ~/.claude/statusline.sh"))
+        let firstRun = PreviewWindowModel(connection: .notConnected(hasOtherStatusLine: false), display: nil, notificationsAllowed: nil)
+        let one = PreviewWindowModel(connection: claude, lastMessage: longConnectMessage, display: weeklyOnly)
+        let two = PreviewWindowModel(connection: claude, display: bothLimits)
+        two.codexConnected = true
+        two.codexDisplay = codex
+        two.codexStatusText = "Connected"
+        two.menuBarChoice = .highest
+        let noCodex = PreviewWindowModel(connection: claude, display: weeklyOnly)
+        noCodex.codexInstalled = false
+        noCodex.codexStatusText = CodexStatusText.notFound
+        let unsigned = PreviewWindowModel(connection: .notConnected(hasOtherStatusLine: true), canShareWithWidget: false,
+                                          display: bothLimits, notificationsAllowed: false)
+        unsigned.codexConnected = true
+        unsigned.codexStatusText = CodexStatusText.noPlanLimits
+        return [("first-run", firstRun), ("connected", one), ("two-tools", two), ("codex-not-found", noCodex), ("unsigned-alerts-off", unsigned)]
     }
 }

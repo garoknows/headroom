@@ -22,7 +22,7 @@ final class MenuBarController {
             self?.popover.performClose(nil)
             openSettings()
         }))
-        model.$snapshot.combineLatest(model.$now).sink { [weak self] _, _ in
+        model.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.updateButton() } }
         }.store(in: &cancellables)
     }
@@ -44,10 +44,14 @@ final class MenuBarController {
 
     private func updateButton() {
         guard let button = item?.button else { return }
-        let row = model.display?.primary
-        button.image = Self.gauge(fraction: (row?.usedPercent ?? 0) / 100)
-        button.title = row?.percent.map { " \($0)%" } ?? ""
-        button.setAccessibilityLabel(row.map { "Wiggleroom: \($0.title) \($0.percentText)" } ?? "Wiggleroom: no numbers yet")
+        let tools = model.toolDisplays
+        let picked = model.menuBarChoice.pick(from: tools)
+        let row = picked?.display.primary
+        let text = MenuBarText.make(choice: model.menuBarChoice, picked: picked, connectedTools: model.connectedTools.count)
+        button.image = Self.gauge(fraction: (row?.percent == nil ? 0 : row!.usedPercent) / 100)
+        button.title = text.title
+        button.toolTip = text.tooltip
+        button.setAccessibilityLabel(text.tooltip)
     }
 
     @objc private func toggle() {

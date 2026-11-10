@@ -114,3 +114,81 @@ public enum WindowNaming {
         return "\(max(1, Int((Double(m) / 60).rounded())))-hour"
     }
 }
+
+/// One tool's card, ready to draw.
+public struct ToolDisplay: Equatable, Sendable, Identifiable {
+    public var tool: Tool
+    public var display: UsageDisplay
+    public var id: Tool { tool }
+
+    public init(tool: Tool, display: UsageDisplay) {
+        self.tool = tool
+        self.display = display
+    }
+
+    /// How close this tool is to any of its limits: its highest percent among limits that have
+    /// numbers (a limit whose reset passed doesn't count). -1 when it has none.
+    public var closeness: Double {
+        display.rows.filter { $0.percent != nil }.map(\.usedPercent).max() ?? -1
+    }
+
+    /// Its weekly percent (or its first limit's), for "Highest of my tools". -1 when unknown.
+    public var weeklyPercent: Double {
+        guard let p = display.primary, p.percent != nil else { return -1 }
+        return p.usedPercent
+    }
+
+    /// Closest to a limit first; ties keep the usual order (Claude Code, then Codex).
+    public static func closestFirst(_ tools: [ToolDisplay]) -> [ToolDisplay] {
+        tools.enumerated().sorted { a, b in
+            a.element.closeness != b.element.closeness ? a.element.closeness > b.element.closeness
+                : (Tool.allCases.firstIndex(of: a.element.tool)! < Tool.allCases.firstIndex(of: b.element.tool)!)
+        }.map(\.element)
+    }
+}
+
+/// What the menu bar item shows.
+public enum MenuBarChoice: String, CaseIterable, Codable, Sendable {
+    /// The weekly percent of whichever connected tool is closest to its limit (the default).
+    case highest
+    case claudeCode = "claude-code"
+    case codex
+
+    public static let `default` = MenuBarChoice.highest
+
+    public var title: String {
+        switch self {
+        case .highest: "Highest of my tools"
+        case .claudeCode: Tool.claudeCode.displayName
+        case .codex: Tool.codex.displayName
+        }
+    }
+
+    /// The tool whose weekly row the menu bar shows, or nil when that tool has no numbers.
+    public func pick(from tools: [ToolDisplay]) -> ToolDisplay? {
+        switch self {
+        case .claudeCode: return tools.first { $0.tool == .claudeCode }
+        case .codex: return tools.first { $0.tool == .codex }
+        case .highest:
+            let rank = { (t: ToolDisplay) in Tool.allCases.firstIndex(of: t.tool) ?? 0 }
+            return tools.max { a, b in
+                a.weeklyPercent != b.weeklyPercent ? a.weeklyPercent < b.weeklyPercent
+                    : rank(a) > rank(b)   // ties: the earlier tool (Claude Code) wins
+            }
+        }
+    }
+}
+
+/// The menu bar item's text and tooltip.
+public enum MenuBarText {
+    /// With "Highest of my tools" and more than one tool connected, a one-letter tag (C or X)
+    /// says which tool the percent belongs to; the tooltip always names it.
+    public static func make(choice: MenuBarChoice, picked: ToolDisplay?, connectedTools: Int) -> (title: String, tooltip: String) {
+        guard let picked, let row = picked.display.primary, let pct = row.percent else {
+            let which = choice == .highest ? "" : " from \(choice.title)"
+            return ("", "Wiggleroom: no numbers\(which) yet")
+        }
+        let tag = choice == .highest && connectedTools > 1 ? " \(picked.tool.tag)" : ""
+        return (" \(pct)%\(tag)", "Wiggleroom: \(picked.tool.displayName), \(row.title) \(row.percentText)")
+    }
+}

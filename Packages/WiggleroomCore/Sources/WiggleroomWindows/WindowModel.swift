@@ -24,6 +24,16 @@ public protocol WindowModel: ObservableObject {
     var alerts: AlertSettings { get set }
     var showMenuBar: Bool { get set }
     var setupDone: Bool { get set }
+    var menuBarChoice: MenuBarChoice { get set }
+
+    // Codex (0.2)
+    var codexConnected: Bool { get }
+    var codexInstalled: Bool { get }
+    var codexStatusText: String { get }
+    /// Every connected tool with numbers, closest to a limit first.
+    var toolDisplays: [ToolDisplay] { get }
+    /// Connected tools, with or without numbers yet.
+    var connectedTools: [Tool] { get }
 
     func connect()
     func disconnect()
@@ -34,12 +44,15 @@ public protocol WindowModel: ObservableObject {
     func deleteAllData()
     func openNotificationSettings()
     func quit()
+    func connectCodex()
+    func disconnectCodex()
+    func checkCodexAgain()
 }
 
 /// The real sizes of Wiggleroom's windows, in one place so the app, the renders and the layout
 /// tests all use the same numbers.
 public enum WindowSizes {
     public static let setup = CGSize(width: 620, height: 720)
-    public static let settings = CGSize(width: 520, height: 600)
+    public static let settings = CGSize(width: 520, height: 640)
     public static let popoverWidth: CGFloat = 320
 }

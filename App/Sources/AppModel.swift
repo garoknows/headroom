@@ -25,6 +25,15 @@ final class AppModel: WindowModel {
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     @Published var showMenuBar: Bool { didSet { defaults.set(showMenuBar, forKey: Keys.menuBar); onMenuBarChange?(showMenuBar) } }
+    @Published var menuBarChoice: MenuBarChoice { didSet { defaults.set(menuBarChoice.rawValue, forKey: Keys.menuBarChoice) } }
+
+    // Codex (0.2). Connecting is only an opt-in: nothing in Codex changes.
+    @Published private(set) var codexConnected: Bool
+    @Published private(set) var codexStatus: CodexStatus = .noSessions
+    @Published private(set) var codexSnapshot: UsageSnapshot?
+    @Published private(set) var codexWatcherState: CodexWatcher.State = .stopped
+    let codexPaths = CodexPaths(home: WiggleroomPaths.currentUser().home)
+    private var codexWatcher: CodexWatcher?
     @Published var alerts: AlertSettings { didSet { saveAlerts() } }
 
     var onMenuBarChange: ((Bool) -> Void)?
@@ -36,10 +45,14 @@ final class AppModel: WindowModel {
         static let alerts = "alertSettings"
         static let alertRecord = "alertRecord"
         static let setupDone = "setupDone"
+        static let menuBarChoice = "menuBarShows"
+        static let codexConnected = "codexConnected"
     }
 
     init() {
         showMenuBar = defaults.bool(forKey: Keys.menuBar)   // off by default (PRD section 5)
+        menuBarChoice = defaults.string(forKey: Keys.menuBarChoice).flatMap(MenuBarChoice.init(rawValue:)) ?? .default
+        codexConnected = defaults.bool(forKey: Keys.codexConnected)   // off until the user connects
         if let d = defaults.data(forKey: Keys.alerts), let a = try? JSONDecoder().decode(AlertSettings.self, from: d) {
             alerts = a
         } else {
@@ -62,7 +75,12 @@ final class AppModel: WindowModel {
         w.start()
         watcherState = w.state
         refreshConnection()
+        if codexConnected {
+            codexSnapshot = CodexStore.load(paths: paths)
+            startCodexWatcher()
+        }
         refresh()
+        refreshCodex()
         refreshNotificationPermission()
         // Once a minute: "As of" turns amber, bars dim, resets pass. Cheap: nothing is read from disk.
         clock = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
@@ -84,10 +102,98 @@ final class AppModel: WindowModel {
         if SnapshotPolicy.shouldReplace(current: best, with: fromScript, now: now) { best = fromScript }
         if let best, !SnapshotPolicy.isPlausible(best, now: now) { return }
         if best != snapshot { snapshot = best }
-        if let folder = groupFolder, AppGroupFiles.publish(best, to: folder, now: now) {
-            WidgetCenter.shared.reloadAllTimelines()
-        }
+        publishToWidget()
         evaluateAlerts()
+    }
+
+    /// Hands every connected tool's numbers to the widget (and 0.1's file for Claude Code).
+    func publishToWidget() {
+        guard let folder = groupFolder else { return }
+        var tools: [ToolSnapshot] = []
+        if let snapshot { tools.append(ToolSnapshot(tool: .claudeCode, usage: snapshot)) }
+        if codexConnected, let codexSnapshot { tools.append(ToolSnapshot(tool: .codex, usage: codexSnapshot)) }
+        if AppGroupFiles.publishTools(tools, to: folder, now: now) { WidgetCenter.shared.reloadAllTimelines() }
+    }
+
+    // MARK: Codex
+
+    /// Runs the Codex reader. New good numbers replace the old ones; a failed read never does
+    /// (lesson 12), so a format change keeps the last numbers and lets "as of" go stale.
+    func refreshCodex() {
+        guard codexConnected else { return }
+        now = Date()
+        let reading = CodexReader.read(paths: codexPaths, now: now)
+        codexStatus = reading.status
+        if let usage = reading.usage, SnapshotPolicy.shouldReplace(current: codexSnapshot, with: usage, now: now) {
+            codexSnapshot = usage
+            try? CodexStore.save(usage, paths: paths)
+        }
+        publishToWidget()
+        evaluateAlerts()
+    }
+
+    func connectCodex() {
+        codexConnected = true
+        defaults.set(true, forKey: Keys.codexConnected)
+        startCodexWatcher()
+        refreshCodex()
+    }
+
+    /// Stops watching, and removes Codex's numbers from Wiggleroom and the widget.
+    /// Nothing in Codex's own folder is touched.
+    func disconnectCodex() {
+        codexWatcher?.stop()
+        codexWatcher = nil
+        codexWatcherState = .stopped
+        codexConnected = false
+        defaults.set(false, forKey: Keys.codexConnected)
+        codexSnapshot = nil
+        CodexStore.remove(paths: paths)
+        publishToWidget()
+    }
+
+    /// "Check again" after installing Codex.
+    func checkCodexAgain() {
+        codexWatcher?.arm()
+        if codexConnected { refreshCodex() } else { objectWillChange.send() }
+    }
+
+    var codexInstalled: Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: codexPaths.codexFolder.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    private func startCodexWatcher() {
+        let w = codexWatcher ?? CodexWatcher(paths: codexPaths)
+        w.onChange = { [weak self] in self?.refreshCodex() }
+        w.onState = { [weak self] s in self?.codexWatcherState = s }
+        codexWatcher = w
+        w.start()
+        codexWatcherState = w.state
+    }
+
+    var codexDisplay: UsageDisplay? {
+        codexSnapshot.map { UsageFormatter.display($0, context: DisplayContext(now: now)) }
+    }
+
+    /// Every connected tool with numbers, closest to a limit first.
+    var toolDisplays: [ToolDisplay] {
+        var out: [ToolDisplay] = []
+        if let d = display { out.append(ToolDisplay(tool: .claudeCode, display: d)) }
+        if codexConnected, let d = codexDisplay { out.append(ToolDisplay(tool: .codex, display: d)) }
+        return ToolDisplay.closestFirst(out)
+    }
+
+    var connectedTools: [Tool] {
+        var out: [Tool] = []
+        if isConnected || snapshot != nil { out.append(.claudeCode) }
+        if codexConnected { out.append(.codex) }
+        return out
+    }
+
+    var codexStatusText: String {
+        CodexStatusText.text(connected: codexConnected, installed: codexInstalled, status: codexStatus,
+                             watching: codexWatcherState == .watching, hasNumbers: codexSnapshot != nil)
     }
 
     var display: UsageDisplay? {
@@ -210,12 +316,14 @@ final class AppModel: WindowModel {
             case .refused(let why): notes.append(why)
             }
         }
+        if codexConnected { disconnectCodex() }
         let problems = DataEraser.eraseAll(paths: paths, appGroupFolder: groupFolder)
         if let id = Bundle.main.bundleIdentifier { defaults.removePersistentDomain(forName: id) }
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         snapshot = nil
         WidgetCenter.shared.reloadAllTimelines()
         showMenuBar = false
+        menuBarChoice = .default
         alerts = .default
         notes.append(problems.isEmpty ? "All Wiggleroom data was deleted." : "Some files couldn't be deleted: \(problems.joined(separator: "; ")).")
         lastMessage = notes.joined(separator: " ")

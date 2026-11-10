@@ -262,3 +262,23 @@ public enum CodexStore {
         try? FileManager.default.removeItem(at: paths.codexFile)
     }
 }
+
+/// What the Codex row in Settings says.
+public enum CodexStatusText {
+    public static let notFound = "Codex not found on this Mac"
+    public static let waiting = "Connected. Your numbers appear after Codex's next reply."
+    public static let noPlanLimits = "Codex isn't reporting plan limits (are you signed in with ChatGPT?)"
+    public static let formatChanged = "Codex changed its log format; Wiggleroom needs an update"
+
+    public static func text(connected: Bool, installed: Bool, status: CodexStatus, watching: Bool, hasNumbers: Bool) -> String {
+        guard installed, status != .notInstalled else { return notFound }
+        guard connected else { return "Not connected" }
+        switch status {
+        case .ok: return watching ? "Connected" : "Connected, but not watching. Click Check Again."
+        case .noPlanLimits: return noPlanLimits
+        case .formatChanged: return formatChanged
+        case .noSessions, .waitingForReply: return hasNumbers ? "Connected" : waiting
+        case .notInstalled: return notFound
+        }
+    }
+}
