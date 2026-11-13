@@ -106,10 +106,8 @@ struct AllToolsRows: View {
         if popover { popoverBody } else { widgetBody }
     }
 
-    /// The widget: one line with the oldest "as of" of the tools shown, so it never looks fresher
-    /// than the data.
+    /// The widget: the rows, then one "As of" line (`AllToolsAsOfLine`).
     private var widgetBody: some View {
-        let oldest = tools.min { $0.display.updatedAt < $1.display.updatedAt }?.display
         let entries = tools.prefix(3).flatMap { t in (t.display.primary.map { [$0] } ?? []).map { Entry(tool: t, row: $0) } }
         return VStack(alignment: .leading, spacing: 10) {
             ForEach(entries) { e in
@@ -117,7 +115,7 @@ struct AllToolsRows: View {
                              dimmed: e.tool.display.freshness == .veryStale, window: e.row.title)
             }
             Spacer(minLength: 0)
-            if let oldest { AsOfLine(display: oldest, palette: palette) }
+            AllToolsAsOfLine(tools: Array(tools.prefix(3)))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -222,4 +220,58 @@ public struct ToolBlocks: View {
         }
         .foregroundStyle(p.text)
     }
+}
+
+/// The medium widget's All tools "As of" line (0.2.3, D186 and D187): "As of 9:29 PM · Codex 8:21 PM",
+/// the older tool's part in amber with the clock icon. It uses the longest version that fits, so
+/// it is never cut off.
+public struct AllToolsAsOfLine: View {
+    let tools: [ToolDisplay]
+    let level: Int?
+    @Environment(\.colorScheme) private var scheme
+
+    /// `level` nil picks the longest version that fits; a number draws that version (tests, renders).
+    public init(tools: [ToolDisplay], level: Int? = nil) {
+        self.tools = tools
+        self.level = level
+    }
+
+    public var body: some View {
+        let line = WidgetAsOfLine.make(tools)
+        let p = Palette(scheme)
+        if let level {
+            version(line, level: level, palette: p)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                version(line, level: 0, palette: p)
+                version(line, level: 1, palette: p)
+                version(line, level: 2, palette: p)
+            }
+        }
+    }
+
+    private func version(_ line: WidgetAsOfLine, level: Int, palette p: Palette) -> some View {
+        HStack(spacing: 4) {
+            if let shared = line.shared { AsOfLine(display: shared, palette: p) }
+            ForEach(Array(line.olderTexts(level: level).enumerated()), id: \.offset) { _, text in
+                Text("·").foregroundStyle(p.secondary)
+                HStack(spacing: 3) {
+                    Image(systemName: "clock.badge.exclamationmark").imageScale(.small)
+                    Text(text)
+                }
+                .foregroundStyle(p.amber)
+            }
+        }
+        .font(.system(size: 10))
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel((line.shared.map { $0.freshness == .fresh ? [$0.asOfText] : ["\($0.asOfText). These numbers may be out of date"] } ?? [])
+            .appending(contentsOf: line.older.map { "\($0.tool.displayName) as of \($0.time). These numbers may be out of date" })
+            .joined(separator: ". "))
+    }
+}
+
+private extension Array {
+    func appending(contentsOf other: [Element]) -> [Element] { self + other }
 }

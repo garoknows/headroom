@@ -97,7 +97,48 @@ if args.first == "--iconset", args.count == 2 {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             write(r.image, "popover-\(state)-\(sname)")
         }
+        // 0.2.3: the widget's All tools "As of" line with an older tool (D186, D187), small and medium.
+        let scheme: ColorScheme = dark ? .dark : .light
+        for (state, content) in oldToolWidgetStates() {
+            for (layout, lname) in [(CardLayout.small, "small"), (.medium, "medium")] {
+                let r = ImageRenderer(content: widget(content, layout, scheme).environment(\.colorScheme, scheme))
+                r.scale = 2
+                write(r.cgImage.map { NSBitmapImageRep(cgImage: $0) }, "widget-\(lname)-\(state)-\(sname)")
+            }
+            if case .all(let tools) = content, state == "all-tools-longest-dates" {
+                for level in 0..<WidgetAsOfLine.levels {
+                    let r = ImageRenderer(content: AllToolsAsOfLine(tools: tools, level: level).padding(8)
+                        .background(Palette(scheme).card).environment(\.colorScheme, scheme))
+                    r.scale = 2
+                    write(r.cgImage.map { NSBitmapImageRep(cgImage: $0) }, "asof-line-longest-level\(level)-\(sname)")
+                }
+            }
+        }
     }
+}
+
+/// 0.2.3: All tools with a tool whose numbers are older, at fixed moments.
+@MainActor func oldToolWidgetStates() -> [(String, WidgetContent)] {
+    let tz = PreviewStates.timeZone
+    var cal = Calendar(identifier: .gregorian); cal.timeZone = tz
+    func all(now: Date, claudeMinutes: Double, codexMinutes: Double) -> WidgetContent {
+        let ctx = DisplayContext(now: now, timeZone: tz, clock: .twelveHour)
+        let c = SampleData.snapshot(now: now, timeZone: tz, age: claudeMinutes * 60)
+        let x = UsageSnapshot(updatedAt: now.addingTimeInterval(-codexMinutes * 60), limits: [
+            LimitWindow(id: LimitKind.session, usedPercent: 12, resetsAt: now.addingTimeInterval(2 * 3600), label: "5-hour", windowMinutes: 300),
+            LimitWindow(id: LimitKind.weekly, usedPercent: 64, resetsAt: now.addingTimeInterval(4 * 86400), label: "This week", windowMinutes: 10080),
+        ])
+        return WidgetContent.make(choice: .all, tools: [ToolSnapshot(tool: .claudeCode, usage: c), ToolSnapshot(tool: .codex, usage: x)],
+                                  groupAvailable: true, context: ctx)
+    }
+    let afterMidnight = cal.date(from: DateComponents(year: 2027, month: 1, day: 15, hour: 0, minute: 30))!
+    return [
+        ("all-tools-both-fresh", all(now: PreviewStates.now, claudeMinutes: 4, codexMinutes: 2)),
+        ("all-tools-codex-70min", all(now: PreviewStates.now, claudeMinutes: 2, codexMinutes: 70)),
+        ("all-tools-codex-3days", all(now: PreviewStates.now, claudeMinutes: 2, codexMinutes: 3 * 1440 + 30)),
+        ("all-tools-both-stale", all(now: PreviewStates.now, claudeMinutes: 120, codexMinutes: 180)),
+        ("all-tools-longest-dates", all(now: afterMidnight, claudeMinutes: 32, codexMinutes: 8 * 1440 + 32)),
+    ]
 }
 
 // `render-docs --windows <folder>` renders every window state, for checking by eye.

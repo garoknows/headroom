@@ -89,6 +89,10 @@ public struct UsageDisplay: Sendable, Equatable {
     public var rows: [LimitRow]
     public var updatedAt: Date
     public var asOfText: String
+    /// The same moment without "As of": "8:21 PM", "Mon 9:01 PM", "Jan 3, 9:29 PM" (0.2.3).
+    public var asOfTime: String
+    /// Just the day when it isn't today: "yesterday", "Mon" or "Jan 3"; nil for today (0.2.3).
+    public var asOfDay: String?
     public var freshness: Freshness
 
     public func row(_ id: String) -> LimitRow? { rows.first { $0.id == id } }
@@ -99,8 +103,9 @@ public struct UsageDisplay: Sendable, Equatable {
 public enum UsageFormatter {
     public static func display(_ snapshot: UsageSnapshot, context: DisplayContext) -> UsageDisplay {
         let rows = snapshot.limits.map { row($0, context: context) }
+        let time = asOf(snapshot.updatedAt, context: context)
         return UsageDisplay(rows: rows, updatedAt: snapshot.updatedAt,
-                            asOfText: "As of " + asOf(snapshot.updatedAt, context: context),
+                            asOfText: "As of " + time, asOfTime: time, asOfDay: asOfDay(snapshot.updatedAt, context: context),
                             freshness: Freshness.of(updatedAt: snapshot.updatedAt, now: context.now))
     }
 
@@ -181,6 +186,18 @@ public enum UsageFormatter {
             return format(date, pattern: timePattern(context.clock), context: context)
         }
         return moment(date, context: context, short: true)
+    }
+
+    /// The day of an "as of" moment, or nil when it is today.
+    static func asOfDay(_ date: Date, context: DisplayContext) -> String? {
+        let cal = context.calendar
+        if cal.isDate(date, inSameDayAs: context.now) { return nil }
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: context.now), to: cal.startOfDay(for: date)).day ?? 0
+        switch days {
+        case -1: return "yesterday"
+        case -6 ... -2: return format(date, pattern: "EEE", context: context)
+        default: return format(date, pattern: "MMM d", context: context)
+        }
     }
 
     /// For a reset that has passed: "at 1:00 AM" today, otherwise "Monday 1:00 AM".

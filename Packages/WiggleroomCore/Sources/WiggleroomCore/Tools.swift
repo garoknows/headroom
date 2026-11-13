@@ -298,3 +298,47 @@ extension ToolDisplay {
         return AsOfPlan(shared: covered.min { $0.display.updatedAt < $1.display.updatedAt }?.display, separate: separate)
     }
 }
+
+// MARK: 0.2.3: the medium widget's All tools "As of" line
+
+/// The medium widget's one bottom line with the popover's rule (D180, D186, D187):
+/// "As of 9:29 PM · Codex 8:21 PM", the older tool's part in amber.
+public struct WidgetAsOfLine: Equatable, Sendable {
+    /// One older tool's part.
+    public struct Older: Equatable, Sendable {
+        public var tool: Tool
+        public var time: String
+        public var day: String?
+    }
+
+    /// The shared "As of" (time and freshness), or nil when there are no tools.
+    public var shared: UsageDisplay?
+    public var older: [Older]
+
+    /// How many shorter versions there are (0 is the full line).
+    public static let levels = 3
+
+    /// The same split as the popover (`ToolDisplay.asOfPlan`): the shared time covers the tools
+    /// as fresh as the freshest one (the oldest of their times); each tool at a worse level adds
+    /// its own name and time, in the tools' order.
+    public static func make(_ tools: [ToolDisplay]) -> WidgetAsOfLine {
+        let plan = ToolDisplay.asOfPlan(tools)
+        let older = tools.filter { plan.separate.contains($0.tool) }
+            .map { Older(tool: $0.tool, time: $0.display.asOfTime, day: $0.display.asOfDay) }
+        return WidgetAsOfLine(shared: plan.shared, older: older)
+    }
+
+    /// Each older tool's part, from longest (level 0) to shortest: "Codex Mon 9:01 PM", then
+    /// "Codex Mon" (a time today stays, since it is all there is to say), then just "Codex".
+    /// The widget picks the longest that fits, so the line is never cut off.
+    public func olderTexts(level: Int) -> [String] {
+        older.map { o in
+            let name = o.tool.displayName
+            switch level {
+            case ..<1: return "\(name) \(o.time)"
+            case 1: return "\(name) \(o.day ?? o.time)"
+            default: return name
+            }
+        }
+    }
+}
