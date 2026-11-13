@@ -70,7 +70,7 @@ For one day this app was published as an unsigned preview called Headroom. It wa
 - **Signed in with an API key** (not a Claude or ChatGPT plan)? The tool doesn't report plan limits then, so Wiggleroom says so instead of showing 0%.
 - **Widget:** right-click it and choose **Edit Widget** to pick the **Tool**: Claude Code, Codex or All tools. The small size shows one weekly limit (with All tools, the tool with the highest weekly percent); the medium size shows both limits of one tool, or one weekly row per tool.
 - **Alerts:** optional notifications when a tool passes 90% (or 75%) of a limit, at most once per level, per tool, per limit.
-- **Menu bar:** optional, off by default. Shows the highest weekly percent of your tools (with a C or X tag when you use both), or the tool you pick in Settings. Click it for every tool's limits: the menu bar's tool first, and in a compact view (each tool's weekly limit, plus any other limit at 75% or more) when you use both.
+- **Menu bar:** optional, off by default. Shows the highest weekly percent of your tools, or the tool you pick in Settings. Hold the pointer over it to see which tool. Click it for every tool's limits: the menu bar's tool first, and in a compact view (each tool's weekly limit, plus any other limit at 75% or more) when you use both.
 - **Status line note:** Claude Code shows fewer keyboard hints whenever any status line is set. If you had no status line before, connecting Wiggleroom adds an empty one, so you may notice those hints are gone.
 
 ## Uninstall

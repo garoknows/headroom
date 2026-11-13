@@ -1,7 +1,7 @@
 # The Homebrew cask, published in garoknows/homebrew-tap (brew install --cask garoknows/tap/wiggleroom).
 # scripts/update-cask.sh fills in the version and sha256 from a release; copy the result to the tap.
 cask "wiggleroom" do
-  version "0.2.1"
+  version "0.2.2"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
   url "https://github.com/garoknows/wiggleroom/releases/download/v#{version}/Wiggleroom-#{version}.dmg"
