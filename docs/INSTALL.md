@@ -75,7 +75,7 @@ In Wiggleroom's Settings:
 
 - **Tools:** connect or disconnect Claude Code and Codex. "More tools" links to [which tools are supported and which are coming](TOOLS.md).
 - **Alerts:** a notification when a tool passes 90% of a limit (and 75% if you turn it on), for every connected tool and every limit, at most once per level, per tool, per limit. For example: "Codex: 90% of your weekly limit used. Resets Monday 1:00 AM."
-- **Show in the menu bar:** a weekly percent next to a small gauge. **Menu bar shows** picks whose: **Highest of my tools** (the default; when you use both tools, a C or X tag says which), **Claude Code** or **Codex**. Click it for every tool's card.
+- **Show in the menu bar:** a weekly percent next to a small gauge. **Menu bar shows** picks whose: **Highest of my tools** (the default; when you use both tools, a C or X tag says which), **Claude Code** or **Codex**. Click it for every tool's limits, with the menu bar's tool first. With both tools, the popover is compact: each tool's weekly limit, plus any other limit at 75% or more.
 - **Open at login:** keeps the widget current after a restart. On by default after setup.
 - **Reveal Data File** and **Delete All Wiggleroom Data**.
 

@@ -1,15 +1,13 @@
-# Wiggleroom 0.2.0
+# Wiggleroom 0.2.1
 
-**Codex, and a Tools section.** Wiggleroom now shows your Codex plan's limits next to Claude Code's: every AI coding limit in one glance.
+**A compact popover when you use both tools.** In 0.2.0, connecting Codex made the menu bar popover about twice as tall. 0.2.1 makes it small again.
 
-- **Codex:** in Settings, under the new **Tools** section, click **Connect** next to Codex. Connecting changes nothing in Codex: after each Codex reply, Wiggleroom reads only the usage numbers from the end of Codex's newest session log on your Mac, read-only. Works when you're signed in to Codex with ChatGPT. [How Codex is read](https://github.com/garoknows/wiggleroom/blob/main/docs/TOOLS.md).
-- **Widget "Tool" setting:** right-click the widget, choose **Edit Widget**, and pick **Claude Code**, **Codex** or **All tools**. Widgets you already have keep showing Claude Code.
-- **Popover:** one card per connected tool, the one closest to its limit first.
-- **Menu bar:** "Menu bar shows" picks **Highest of my tools** (the default), **Claude Code** or **Codex**. With both tools connected, a C or X tag says whose percent it is.
-- **Alerts for every tool and every limit:** 75% and 90% now apply to each tool's 5-hour and weekly limits, at most once per level each. For example: "Codex: 90% of your weekly limit used. Resets Monday 1:00 AM."
-- **Which tools are next:** Wiggleroom adds a tool only when it hands out its limits in a way its maker supports. [See which tools are supported and which are coming](https://github.com/garoknows/wiggleroom/blob/main/docs/TOOLS.md).
+- **Compact popover with two tools:** one row per tool for its weekly limit, plus any other limit (such as the 5-hour limit) once it reaches 75%, and one "As of" line. With one tool the popover is unchanged.
+- **The menu bar and the popover agree:** the tool the menu bar shows is always the top row. With **Highest of my tools**, the tools are ordered by weekly percent, highest first.
+- **The footer names every tool:** "Watching Claude Code and Codex" when both are watched, and a line of its own for any tool that isn't being watched.
+- **Dates for resets a week away:** a reset 7 days away, on today's weekday, now shows its date, for example "Resets Thu, Nov 19, 8:21 PM", so it can't be read as tonight.
 
-To update with Homebrew: `brew upgrade --cask wiggleroom`. Or quit Wiggleroom from its menu and replace it in Applications with the new version. You don't need to connect Claude Code again.
+To update with Homebrew: `brew upgrade --cask wiggleroom`. Or quit Wiggleroom from its menu and replace it in Applications with the new version. You don't need to connect Claude Code or Codex again.
 
 Wiggleroom has been tested automatically but not yet on many Macs. Please report anything odd at github.com/garoknows/wiggleroom/issues.
 
@@ -19,11 +17,12 @@ Wiggleroom has been tested automatically but not yet on many Macs. Please report
 - "As of" time that turns amber after 30 minutes; bars dim after 6 hours; a limit whose reset time has passed says so instead of guessing.
 - A Tools section in Settings. Claude Code: your settings are backed up first, and your existing status line keeps working exactly as before. Codex: nothing in Codex changes.
 - Optional alerts when a tool passes 90% (or 75%) of a limit.
-- Optional menu bar item.
+- Optional menu bar item. Click it for every tool's limits, in a compact view when you use both tools.
 - "Delete all Wiggleroom data" in Settings (covers Codex too, and never touches Codex's own folder).
 
 ## Changelog
 
+- **0.2.1:** A compact popover when you use both tools, the menu bar's tool always first in it, a footer that names every tool, and dates for resets a week away on today's weekday.
 - **0.2.0:** Added Codex, the Tools section, the widget's Tool setting (Claude Code, Codex, All tools), one popover card per tool, the "Menu bar shows" picker, and alerts for every tool and limit.
 - **0.1.1:** Fixed: the setup and Settings windows were cut off at the edges, the menu bar popover had an empty gap, and reset times now show the weekday. Percentages now round up, like Claude's usage page.
 - **0.1.0:** First release. Renamed from Headroom, a one-day unsigned preview, because another Mac app already uses that name. If you tried Headroom, Connect takes over its place in your status line setting and keeps your own status line. See "Tried the Headroom preview?" in the install guide.
