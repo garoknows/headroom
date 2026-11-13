@@ -154,27 +154,26 @@ public enum UsageFormatter {
                         reset: reset, resetText: text, resetTextShort: short, outOfRange: l.outOfRange)
     }
 
-    /// "today 3:00 PM", "tomorrow 1:00 AM", "Monday 1:00 AM" (short: "Mon 1:00 AM"), or "Dec 1, 1:00 AM".
-    /// The weekday is used for anything up to 7 days ahead, like Claude's own usage page: right
-    /// after a weekly reset the next one is exactly 7 days away and reads "Monday 1:00 AM".
+    /// "today 3:00 PM", "tomorrow 1:00 AM", "Monday 1:00 AM" (short: "Mon 1:00 AM"),
+    /// "Thu, Nov 19, 8:21 PM" or "Dec 1, 1:00 AM".
+    /// The weekday alone is used up to 6 days ahead, like Claude's own usage page. A reset a week
+    /// away on today's weekday (right after a weekly reset it is exactly 7 days away) also shows
+    /// its date, because "Thursday 8:21 PM" read on a Thursday looks like tonight (0.2.1).
     static func moment(_ date: Date, context: DisplayContext, short: Bool) -> String {
         let cal = context.calendar
         let time = format(date, pattern: timePattern(context.clock), context: context)
         let today = cal.startOfDay(for: context.now)
         let day = cal.startOfDay(for: date)
         let days = cal.dateComponents([.day], from: today, to: day).day ?? 0
-        let withinAWeek = date.timeIntervalSince(context.now) <= weekAhead
         switch days {
         case 0: return "today \(time)"
         case 1: return "tomorrow \(time)"
         case -1: return "yesterday \(time)"
-        case 2...7 where withinAWeek, -6 ... -2: return "\(format(date, pattern: short ? "EEE" : "EEEE", context: context)) \(time)"
+        case 2...6, -6 ... -2: return "\(format(date, pattern: short ? "EEE" : "EEEE", context: context)) \(time)"
+        case 7: return "\(format(date, pattern: "EEE, MMM d", context: context)), \(time)"
         default: return "\(format(date, pattern: "MMM d", context: context)), \(time)"
         }
     }
-
-    /// The furthest ahead a reset is still named by its weekday.
-    static let weekAhead: TimeInterval = 7 * 24 * 3600
 
     /// "2:41 PM" today, otherwise "yesterday 2:41 PM", "Mon 2:41 PM" or "Nov 2, 2:41 PM".
     static func asOf(_ date: Date, context: DisplayContext) -> String {

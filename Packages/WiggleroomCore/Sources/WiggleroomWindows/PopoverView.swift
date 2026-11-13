@@ -2,8 +2,8 @@ import WiggleroomCore
 import WiggleroomUI
 import SwiftUI
 
-/// The menu bar item's popover: one block per connected tool (closest to a limit first), the
-/// watcher state, Settings… and Quit.
+/// The menu bar item's popover: the connected tools (the one the menu bar shows first; compact
+/// when two have numbers), one footer line per watcher state, Settings… and Quit.
 public struct PopoverView<Model: WindowModel>: View {
     @ObservedObject var model: Model
     let openSettings: () -> Void
@@ -25,15 +25,17 @@ public struct PopoverView<Model: WindowModel>: View {
                 if model.toolDisplays.isEmpty && model.connectedTools.isEmpty {
                     UsageCard(content: model.cardContent, layout: .popover, live: true)
                 } else {
-                    ToolBlocks(tools: model.toolDisplays, waiting: waitingTools, live: true)
+                    ToolBlocks(tools: model.menuBarChoice.popoverOrder(model.toolDisplays), waiting: waitingTools, live: true)
                 }
             }
             .layoutProbe("popover: card")
             Divider()
-            Label(model.watcherText, systemImage: model.isWatching ? "dot.radiowaves.left.and.right" : "exclamationmark.triangle")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            ForEach(model.watcherLines, id: \.text) { line in
+                Label(line.text, systemImage: line.ok ? "dot.radiowaves.left.and.right" : "exclamationmark.triangle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 Button("Settings…", action: openSettings)
                 Spacer()

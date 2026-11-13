@@ -66,10 +66,16 @@ struct ResetLine: View {
     let row: LimitRow
     let short: Bool
     let live: Bool
+    /// The limit's name, when the row's title is the tool's name ("5-hour · resets in 2 hr").
+    var window: String? = nil
 
     var body: some View {
         if live, row.isSession, case .upcoming(let date) = row.reset {
-            Text("Resets in \(date, style: .relative)")
+            if let window {
+                Text("\(window) · resets in \(date, style: .relative)")
+            } else {
+                Text("Resets in \(date, style: .relative)")
+            }
         } else {
             Text(short ? row.resetTextShort : row.resetText)
         }
@@ -101,13 +107,14 @@ struct LimitRowView: View {
     let palette: Palette
     let live: Bool
     let dimmed: Bool
+    var window: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(row.title).font(.system(size: 13, weight: .semibold))
-                    ResetLine(row: row, short: false, live: live)
+                    ResetLine(row: row, short: false, live: live, window: window)
                         .font(.system(size: 11))
                         .foregroundStyle(palette.secondary)
                         .lineLimit(1)

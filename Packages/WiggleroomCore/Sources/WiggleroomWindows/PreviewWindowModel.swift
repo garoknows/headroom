@@ -20,6 +20,7 @@ public final class PreviewWindowModel: WindowModel {
     @Published public var codexInstalled = true
     @Published public var codexStatusText = "Not connected"
     @Published public var codexDisplay: UsageDisplay?
+    @Published public var codexWatching = true
     public var setupDone = false
     public let version = "0.1.1 (2)"
 
@@ -50,6 +51,10 @@ public final class PreviewWindowModel: WindowModel {
     }
 
     public var watcherText: String { isWatching ? "Watching for new numbers from Claude Code" : "Not watching: the data folder can't be read" }
+    public var watcherLines: [WatcherLine] {
+        WatcherSummary.lines(tools: connectedTools, claudeCode: isWatching ? .watching : .problem("the data folder can't be read"),
+                             codex: codexWatching ? .watching : .problem(WatcherSummary.codexNotFound))
+    }
 
     public func connect() {}
     public func disconnect() {}
@@ -97,6 +102,13 @@ public enum PreviewStates {
     }
 
     public static var codex: UsageDisplay { UsageFormatter.display(codexUsage, context: context) }
+
+    /// Invented Codex numbers with the 5-hour limit at 82% (amber), so the compact popover adds its row.
+    public static var codexWarning: UsageDisplay {
+        var s = codexUsage
+        s.limits[0].usedPercent = 82
+        return UsageFormatter.display(s, context: context)
+    }
 
     /// The longest message Connect can show, with a long file path that has no spaces to wrap at.
     public static let longConnectMessage = "Connected. Wiggleroom replaced the Headroom preview in your status line setting. Your own status line still runs after Wiggleroom. A backup of your previous settings is at ~/Library/Application_Support/io.github.garoknows.wiggleroom/settings-backups/settings-2027-01-14T22-45-00Z-an-invented-very-long-file-name.json."

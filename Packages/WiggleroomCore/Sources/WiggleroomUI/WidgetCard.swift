@@ -92,23 +92,38 @@ struct ToolHeading: View {
 }
 
 /// All tools, medium: one weekly row per tool, with the tool's name as the row's title.
+/// The two-tool popover (0.2.1) uses the same rows, plus any other limit at 75% or more.
 struct AllToolsRows: View {
     let tools: [ToolDisplay]
     let palette: Palette
+    /// The popover's 5-hour countdown ticks; the widget's rows show clock times.
+    var live = false
+    /// The popover also shows each tool's other limits at 75% or more (`compactRows`); the
+    /// medium widget only has room for the weekly rows.
+    var popover = false
 
     var body: some View {
         // The oldest "as of" of the tools shown, so the line never looks fresher than the data.
         let oldest = tools.min { $0.display.updatedAt < $1.display.updatedAt }?.display
+        let entries = (popover ? tools : Array(tools.prefix(3))).flatMap { t in
+            (popover ? t.compactRows : t.display.primary.map { [$0] } ?? []).map { Entry(tool: t, row: $0) }
+        }
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(tools.prefix(3)) { t in
-                if let row = t.display.primary {
-                    LimitRowView(row: Self.titled(row, t), palette: palette, live: false, dimmed: t.display.freshness == .veryStale)
-                }
+            ForEach(entries) { e in
+                LimitRowView(row: Self.titled(e.row, e.tool), palette: palette, live: live,
+                             dimmed: e.tool.display.freshness == .veryStale, window: e.row.title)
             }
-            Spacer(minLength: 0)
+            if !popover { Spacer(minLength: 0) }
             if let oldest { AsOfLine(display: oldest, palette: palette) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// One row: unique across tools (both have a "seven_day" limit).
+    struct Entry: Identifiable {
+        let tool: ToolDisplay
+        let row: LimitRow
+        var id: String { "\(tool.tool.rawValue)/\(row.id)" }
     }
 
     /// "Codex" as the title, "This week · Resets Monday 1:00 AM" below it.
@@ -140,8 +155,10 @@ struct WaitingCard: View {
     }
 }
 
-/// The popover's cards: one block per connected tool, titled with its name, closest to a limit
-/// first. A connected tool without numbers yet says when they'll come.
+/// The popover's cards, in the order given (the menu bar's tool first). One tool with numbers
+/// gets its full card under its name. Two or more get the compact rows (0.2.1): each tool's weekly
+/// row, plus any other limit at 75% or more, and one "As of" line. A connected tool without
+/// numbers yet says when they'll come.
 public struct ToolBlocks: View {
     let tools: [ToolDisplay]
     let waiting: [Tool]
@@ -157,11 +174,14 @@ public struct ToolBlocks: View {
     public var body: some View {
         let p = Palette(scheme)
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(tools.enumerated()), id: \.element.id) { i, t in
-                if i > 0 { Divider() }
-                VStack(alignment: .leading, spacing: 6) {
-                    ToolHeading(name: t.tool.displayName, palette: p)
-                    UsageCard(content: .usage(t.display), layout: .popover, live: live)
+            if tools.count >= 2 {
+                AllToolsRows(tools: tools, palette: p, live: live, popover: true)
+            } else {
+                ForEach(tools) { t in
+                    VStack(alignment: .leading, spacing: 6) {
+                        ToolHeading(name: t.tool.displayName, palette: p)
+                        UsageCard(content: .usage(t.display), layout: .popover, live: live)
+                    }
                 }
             }
             ForEach(Array(waiting.enumerated()), id: \.element) { i, tool in

@@ -28,15 +28,16 @@ import Testing
         #expect(row.title == "This week")
     }
 
-    /// Right after a weekly reset the next one is exactly 7 days away. Like Claude's own usage
-    /// page, it reads "Monday 1:00 AM", not a date (0.1.0 showed "Nov 16, 1:00 AM").
-    /// The reset is Mon Jan 18 2027, 09:00 UTC, seen from three places in both clock styles.
+    /// Up to 6 days ahead a reset is named by its weekday, like Claude's own usage page.
+    /// A reset a week away on today's weekday shows its date too (0.2.1): "Monday 1:00 AM" read
+    /// on a Monday looked like tonight. The reset is Mon Jan 18 2027, 09:00 UTC, seen from three
+    /// places in both clock styles.
     @Test(arguments: [
         (vegas, ClockStyle.twelveHour, "1:00 AM"), (vegas, .twentyFourHour, "01:00"),
         (utc, .twelveHour, "9:00 AM"), (utc, .twentyFourHour, "09:00"),
         (tokyo, .twelveHour, "6:00 PM"), (tokyo, .twentyFourHour, "18:00"),
     ])
-    func weekdayForResetsUpToSevenDaysAhead(tz: String, clock: ClockStyle, time: String) {
+    func weekdayUpToSixDaysAheadThenTheDate(tz: String, clock: ClockStyle, time: String) {
         let reset = date(2027, 1, 18, 9, tz: utc)
         let week: TimeInterval = 7 * 24 * 3600
         func row(_ ahead: TimeInterval) -> LimitRow {
@@ -44,15 +45,26 @@ import Testing
             let s = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 0, resetsAt: reset)])
             return UsageFormatter.display(s, context: ctx(now, tz, clock)).rows[0]
         }
-        // Exactly 7 days ahead.
-        #expect(row(week).resetText == "Resets Monday \(time)")
-        #expect(row(week).resetTextShort == "Resets Mon \(time)")
-        // 6 days 23 hours ahead.
-        #expect(row(week - 3600).resetText == "Resets Monday \(time)")
-        #expect(row(week - 3600).resetTextShort == "Resets Mon \(time)")
-        // Just over 7 days ahead: the weekday would read as this week's, so the date is used.
-        #expect(row(week + 60).resetText == "Resets Jan 18, \(time)")
-        #expect(row(week + 60).resetTextShort == "Resets Jan 18, \(time)")
+        // 6 days ahead: a different weekday, so the weekday alone is clear.
+        #expect(row(week - 86400).resetText == "Resets Monday \(time)")
+        #expect(row(week - 86400).resetTextShort == "Resets Mon \(time)")
+        // Exactly 7 days ahead (right after a weekly reset), 6 days 23 hours ahead and just over
+        // 7 days ahead are all on today's weekday: weekday and date.
+        for ahead in [week, week - 3600, week + 60] {
+            #expect(row(ahead).resetText == "Resets Mon, Jan 18, \(time)")
+            #expect(row(ahead).resetTextShort == "Resets Mon, Jan 18, \(time)")
+        }
+        // 8 days ahead: the date, as before.
+        #expect(row(week + 86400).resetText == "Resets Jan 18, \(time)")
+    }
+
+    /// A fresh weekly window seen on a Thursday evening reads as next Thursday, with its date.
+    @Test func freshWeeklyWindowOnAThursday() {
+        let now = date(2026, 11, 12, 20, 21, tz: vegas)
+        let s = UsageSnapshot(updatedAt: now, limits: [LimitWindow(id: "seven_day", usedPercent: 0, resetsAt: now.addingTimeInterval(7 * 86400))])
+        let row = UsageFormatter.display(s, context: ctx(now, vegas)).rows[0]
+        #expect(row.resetText == "Resets Thu, Nov 19, 8:21 PM")
+        #expect(row.resetTextShort == "Resets Thu, Nov 19, 8:21 PM")
     }
 
     @Test func todayTomorrowAroundLocalMidnight() {

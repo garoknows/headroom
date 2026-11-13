@@ -18,6 +18,8 @@ public protocol WindowModel: ObservableObject {
     var cardContent: CardContent { get }
     var isWatching: Bool { get }
     var watcherText: String { get }
+    /// The popover's footer: every connected tool's watcher (0.2.1).
+    var watcherLines: [WatcherLine] { get }
     var notificationsAllowed: Bool? { get }
     var launchAtLogin: Bool { get }
     var version: String { get }

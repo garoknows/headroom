@@ -346,6 +346,21 @@ final class AppModel: WindowModel {
 
     var isWatching: Bool { watcherState == .watching }
 
+    /// The popover's footer: one line for the watched tools, one per tool that isn't watched.
+    var watcherLines: [WatcherLine] {
+        let claude: WatchStatus = switch watcherState {
+        case .starting: .starting
+        case .watching: .watching
+        case .problem(let why): .problem(why)
+        }
+        let codex: WatchStatus = switch codexWatcherState {
+        case .watching: .watching
+        case .waitingForCodex: .problem(WatcherSummary.codexNotFound)
+        case .stopped: .problem(WatcherSummary.codexStopped)
+        }
+        return WatcherSummary.lines(tools: connectedTools, claudeCode: claude, codex: codex)
+    }
+
     var canShareWithWidget: Bool { groupFolder != nil }
 
     func openNotificationSettings() {

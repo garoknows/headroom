@@ -60,8 +60,8 @@ import WiggleroomWindows
         }
     }
 
-    /// The popover is as tall as its content: one block per connected tool, one row and no gap
-    /// for a weekly-only plan.
+    /// The popover is as tall as its content: one row and no gap for a weekly-only plan. With two
+    /// tools it is compact (0.2.1): each tool's weekly row, plus any other limit at 75% or more.
     @Test(arguments: schemes)
     func popoverSizesToItsContent(dark: Bool) {
         let weekly = PreviewWindowModel(display: PreviewStates.weeklyOnly)
@@ -69,10 +69,13 @@ import WiggleroomWindows
         let two = PreviewWindowModel(display: PreviewStates.bothLimits)
         two.codexConnected = true
         two.codexDisplay = PreviewStates.codex
+        let twoWarning = PreviewWindowModel(display: PreviewStates.bothLimits)
+        twoWarning.codexConnected = true
+        twoWarning.codexDisplay = PreviewStates.codexWarning
         let codexWaiting = PreviewWindowModel(display: PreviewStates.weeklyOnly)
         codexWaiting.codexConnected = true
         var heights: [String: CGFloat] = [:]
-        for (name, model) in [("weekly-only", weekly), ("both", both), ("two-tools", two), ("codex-waiting", codexWaiting)] {
+        for (name, model) in [("weekly-only", weekly), ("both", both), ("two-tools", two), ("two-tools-warning", twoWarning), ("codex-waiting", codexWaiting)] {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             #expect(WindowHarness.overflows(r).isEmpty, "popover (\(name)): \(WindowHarness.overflows(r))")
             #expect(r.contentSize.width == WindowSizes.popoverWidth)
@@ -87,8 +90,12 @@ import WiggleroomWindows
             #expect(abs(r.contentSize.height - content) <= 1, "popover (\(name)) is \(r.contentSize.height) tall for \(content) of content")
             heights[name] = r.contentSize.height
         }
-        if let one = heights["weekly-only"], let b = heights["both"], let t = heights["two-tools"] {
-            #expect(one < b && b < t, "popover heights should grow with what they show: \(one), \(b), \(t)")
+        if let one = heights["weekly-only"], let b = heights["both"], let t = heights["two-tools"], let w = heights["two-tools-warning"] {
+            #expect(one < b, "a second limit should add a row: \(one), \(b)")
+            // Two tools with low 5-hour limits take no more room than one tool with both limits.
+            #expect(t <= b, "the two-tool popover should be compact: \(t) tall, one tool with both limits is \(b)")
+            // A 5-hour limit at 75% or more adds its row.
+            #expect(w > t, "a 5-hour limit at 75% or more should add a row: \(w), \(t)")
         }
     }
 }

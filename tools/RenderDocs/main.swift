@@ -69,8 +69,27 @@ if args.first == "--iconset", args.count == 2 {
         let liveCodex = UsageFormatter.display(codexNow, context: DisplayContext(now: realNow))
         let two = PreviewWindowModel(display: liveBoth); two.codexConnected = true; two.codexDisplay = liveCodex
         let waiting = PreviewWindowModel(display: liveWeekly); waiting.codexConnected = true
+        // 0.2.1: the compact two-tool popover. Codex's 5-hour limit at 82% adds its row (amber).
+        var codexWarn = codexNow; codexWarn.limits[0].usedPercent = 82
+        let twoWarning = PreviewWindowModel(display: liveBoth); twoWarning.codexConnected = true
+        twoWarning.codexDisplay = UsageFormatter.display(codexWarn, context: DisplayContext(now: realNow))
+        // Menu bar pinned to Claude Code: Claude Code is the top row although Codex's weekly is higher.
+        let pinned = PreviewWindowModel(display: liveBoth); pinned.codexConnected = true; pinned.codexDisplay = liveCodex
+        pinned.menuBarChoice = .claudeCode
+        // Codex connected but not watched: the footer gets a line for it.
+        let notWatched = PreviewWindowModel(display: liveBoth); notWatched.codexConnected = true; notWatched.codexDisplay = liveCodex
+        notWatched.codexWatching = false
+        // A fresh Codex week (resets exactly 7 days from now, on today's weekday) next to a
+        // weekly-only Claude Code plan: the reset shows its date.
+        let freshWeek = UsageSnapshot(updatedAt: realNow, limits: [
+            LimitWindow(id: LimitKind.session, usedPercent: 0, resetsAt: realNow.addingTimeInterval(5 * 3600), label: "5-hour", windowMinutes: 300),
+            LimitWindow(id: LimitKind.weekly, usedPercent: 0, resetsAt: realNow.addingTimeInterval(7 * 86400), label: "This week", windowMinutes: 10080),
+        ])
+        let fresh = PreviewWindowModel(display: liveWeekly); fresh.codexConnected = true
+        fresh.codexDisplay = UsageFormatter.display(freshWeek, context: DisplayContext(now: realNow))
         for (state, model) in [("weekly-only", PreviewWindowModel(display: liveWeekly)), ("both-limits", PreviewWindowModel(display: liveBoth)),
-                               ("two-tools", two), ("codex-waiting", waiting)] {
+                               ("two-tools", two), ("two-tools-warning", twoWarning), ("two-tools-pinned-claude-code", pinned),
+                               ("two-tools-codex-not-watched", notWatched), ("two-tools-fresh-codex-week", fresh), ("codex-waiting", waiting)] {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             write(r.image, "popover-\(state)-\(sname)")
         }

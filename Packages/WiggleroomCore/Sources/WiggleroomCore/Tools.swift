@@ -170,11 +170,8 @@ public enum MenuBarChoice: String, CaseIterable, Codable, Sendable {
         case .claudeCode: return tools.first { $0.tool == .claudeCode }
         case .codex: return tools.first { $0.tool == .codex }
         case .highest:
-            let rank = { (t: ToolDisplay) in Tool.allCases.firstIndex(of: t.tool) ?? 0 }
-            return tools.max { a, b in
-                a.weeklyPercent != b.weeklyPercent ? a.weeklyPercent < b.weeklyPercent
-                    : rank(a) > rank(b)   // ties: the earlier tool (Claude Code) wins
-            }
+            // The first tool of the "Highest of my tools" order, which the popover uses too.
+            return ToolDisplay.highestFirst(tools).first
         }
     }
 }
@@ -190,5 +187,88 @@ public enum MenuBarText {
         }
         let tag = choice == .highest && connectedTools > 1 ? " \(picked.tool.tag)" : ""
         return (" \(pct)%\(tag)", "Wiggleroom: \(picked.tool.displayName), \(row.title) \(row.percentText)")
+    }
+}
+
+// MARK: 0.2.1: one order for the menu bar and the popover, the compact popover, the footer
+
+extension ToolDisplay {
+    /// The "Highest of my tools" order: highest weekly percent (or first limit) first, a tool
+    /// without numbers last, and ties in the usual order (Claude Code, then Codex).
+    public static func highestFirst(_ tools: [ToolDisplay]) -> [ToolDisplay] {
+        let rank = { (t: ToolDisplay) in Tool.allCases.firstIndex(of: t.tool) ?? 0 }
+        return tools.sorted { a, b in
+            a.weeklyPercent != b.weeklyPercent ? a.weeklyPercent > b.weeklyPercent : rank(a) < rank(b)
+        }
+    }
+
+    /// The rows this tool gets in the compact (two-tool) popover: its weekly row (or its first
+    /// limit), then any other limit at 75% or more, the same point where its bar turns amber.
+    /// A limit whose reset has passed shows no percent, so it is never added.
+    public var compactRows: [LimitRow] {
+        guard let primary = display.primary else { return [] }
+        return [primary] + display.rows.filter { $0.id != primary.id && $0.percent != nil && $0.level != .normal }
+    }
+}
+
+extension MenuBarChoice {
+    /// The popover's order: the tool the menu bar shows comes first, so the two never disagree.
+    /// The rest follow the "Highest of my tools" order.
+    public func popoverOrder(_ tools: [ToolDisplay]) -> [ToolDisplay] {
+        let ordered = ToolDisplay.highestFirst(tools)
+        guard let top = pick(from: tools) else { return ordered }
+        return [top] + ordered.filter { $0.tool != top.tool }
+    }
+}
+
+/// What a tool's watcher is doing, for the popover's footer.
+public enum WatchStatus: Equatable, Sendable {
+    case starting
+    case watching
+    /// Not watching, with the reason in plain words.
+    case problem(String)
+}
+
+/// One line of the popover's footer.
+public struct WatcherLine: Equatable, Sendable {
+    public var text: String
+    /// False when the line reports a problem (it gets the warning icon).
+    public var ok: Bool
+
+    public init(text: String, ok: Bool) {
+        self.text = text
+        self.ok = ok
+    }
+}
+
+/// The popover's footer: one line naming every connected tool that is being watched, and a line
+/// of its own for each one that isn't (problems first, so they're seen).
+public enum WatcherSummary {
+    /// Codex's folder is missing (Codex isn't installed yet) or macOS wouldn't watch it.
+    public static let codexNotFound = "its folder isn't there or can't be watched"
+    /// Codex is connected but its watcher was stopped.
+    public static let codexStopped = "open Settings and click Check Again"
+
+    /// `tools` are the connected tools. With none, Claude Code's watcher is the one setup waits on.
+    public static func lines(tools: [Tool], claudeCode: WatchStatus, codex: WatchStatus) -> [WatcherLine] {
+        let shown = tools.isEmpty ? [Tool.claudeCode] : Tool.allCases.filter(tools.contains)
+        var out: [WatcherLine] = []
+        var watching: [String] = []
+        for tool in shown {
+            switch tool == .claudeCode ? claudeCode : codex {
+            case .watching: watching.append(tool.displayName)
+            case .starting: out.append(WatcherLine(text: "Starting to watch \(tool.displayName)…", ok: false))
+            case .problem(let why): out.append(WatcherLine(text: "Not watching \(tool.displayName): \(why)", ok: false))
+            }
+        }
+        if watching.count == 1 {
+            // One tool: the same words as 0.2.0.
+            out.append(WatcherLine(text: "Watching for new numbers from \(watching[0])", ok: true))
+        } else if watching.count > 1 {
+            // Short enough for one line in the popover.
+            let names = watching.dropLast().joined(separator: ", ") + " and " + watching.last!
+            out.append(WatcherLine(text: "Watching \(names)", ok: true))
+        }
+        return out
     }
 }
