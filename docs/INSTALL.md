@@ -85,6 +85,7 @@ In Wiggleroom's Settings:
 | --- | --- |
 | "As of 2:41 PM" in grey | Numbers from the tool's last reply at 2:41 PM. The medium widget names the tool on this line ("Codex · As of 2:41 PM"). |
 | "As of" in amber | The numbers are over 30 minutes old. Usage elsewhere (claude.ai, the Claude app) isn't counted until your next Claude Code reply. |
+| "As of 9:29 PM · Codex 8:21 PM" (All tools) | One tool's numbers are older than the other's. The first time covers the up-to-date tool; the older tool's name and time follow in amber, so a tool you haven't used lately doesn't make the whole widget look out of date. |
 | Dimmed bars | The numbers are over 6 hours old. |
 | "Reset at 1:00 AM, waiting for new numbers" | That limit has reset; fresh numbers come with your next Claude Code reply. |
 | "Connect Wiggleroom to Claude Code" | No numbers yet. Connect, then send a message in Claude Code. |
