@@ -85,11 +85,15 @@ if args.first == "--iconset", args.count == 2 {
             LimitWindow(id: LimitKind.session, usedPercent: 0, resetsAt: realNow.addingTimeInterval(5 * 3600), label: "5-hour", windowMinutes: 300),
             LimitWindow(id: LimitKind.weekly, usedPercent: 0, resetsAt: realNow.addingTimeInterval(7 * 86400), label: "This week", windowMinutes: 10080),
         ])
+        // 0.2.2: Codex's numbers 70 minutes old next to fresh Claude Code numbers.
+        var codexOldNow = codexNow; codexOldNow.updatedAt = realNow.addingTimeInterval(-70 * 60)
+        let codexOld = PreviewWindowModel(display: liveBoth); codexOld.codexConnected = true
+        codexOld.codexDisplay = UsageFormatter.display(codexOldNow, context: DisplayContext(now: realNow))
         let fresh = PreviewWindowModel(display: liveWeekly); fresh.codexConnected = true
         fresh.codexDisplay = UsageFormatter.display(freshWeek, context: DisplayContext(now: realNow))
         for (state, model) in [("weekly-only", PreviewWindowModel(display: liveWeekly)), ("both-limits", PreviewWindowModel(display: liveBoth)),
                                ("two-tools", two), ("two-tools-warning", twoWarning), ("two-tools-pinned-claude-code", pinned),
-                               ("two-tools-codex-not-watched", notWatched), ("two-tools-fresh-codex-week", fresh), ("codex-waiting", waiting)] {
+                               ("two-tools-codex-not-watched", notWatched), ("two-tools-codex-old", codexOld), ("two-tools-fresh-codex-week", fresh), ("codex-waiting", waiting)] {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             write(r.image, "popover-\(state)-\(sname)")
         }

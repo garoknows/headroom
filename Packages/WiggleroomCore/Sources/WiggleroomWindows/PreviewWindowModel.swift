@@ -50,7 +50,6 @@ public final class PreviewWindowModel: WindowModel {
         (isConnected || display != nil ? [Tool.claudeCode] : []) + (codexConnected ? [.codex] : [])
     }
 
-    public var watcherText: String { isWatching ? "Watching for new numbers from Claude Code" : "Not watching: the data folder can't be read" }
     public var watcherLines: [WatcherLine] {
         WatcherSummary.lines(tools: connectedTools, claudeCode: isWatching ? .watching : .problem("the data folder can't be read"),
                              codex: codexWatching ? .watching : .problem(WatcherSummary.codexNotFound))
@@ -103,6 +102,13 @@ public enum PreviewStates {
 
     public static var codex: UsageDisplay { UsageFormatter.display(codexUsage, context: context) }
 
+    /// Invented Codex numbers from 70 minutes ago (stale), next to fresh Claude Code numbers.
+    public static var codexOld: UsageDisplay {
+        var s = codexUsage
+        s.updatedAt = now.addingTimeInterval(-70 * 60)
+        return UsageFormatter.display(s, context: context)
+    }
+
     /// Invented Codex numbers with the 5-hour limit at 82% (amber), so the compact popover adds its row.
     public static var codexWarning: UsageDisplay {
         var s = codexUsage
@@ -134,6 +140,17 @@ public enum PreviewStates {
                                           display: bothLimits, notificationsAllowed: false)
         unsigned.codexConnected = true
         unsigned.codexStatusText = CodexStatusText.noPlanLimits
-        return [("first-run", firstRun), ("connected", one), ("two-tools", two), ("codex-not-found", noCodex), ("unsigned-alerts-off", unsigned)]
+        // 0.2.2: Codex's numbers over an hour old, and Codex connected but not watched.
+        let codexOld = PreviewWindowModel(connection: claude, display: bothLimits)
+        codexOld.codexConnected = true
+        codexOld.codexDisplay = PreviewStates.codexOld
+        codexOld.codexStatusText = "Connected"
+        let notWatched = PreviewWindowModel(connection: claude, display: bothLimits)
+        notWatched.codexConnected = true
+        notWatched.codexDisplay = codex
+        notWatched.codexWatching = false
+        notWatched.codexStatusText = "Connected, but not watching. Click Check Again."
+        return [("first-run", firstRun), ("connected", one), ("two-tools", two), ("two-tools-codex-old", codexOld),
+                ("codex-not-watched", notWatched), ("codex-not-found", noCodex), ("unsigned-alerts-off", unsigned)]
     }
 }

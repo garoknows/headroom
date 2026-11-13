@@ -160,17 +160,21 @@ import Testing
         return ToolDisplay(tool: t, display: UsageFormatter.display(s, context: DisplayContext(now: now, timeZone: TimeZone(identifier: vegas)!, clock: .twelveHour)))
     }
 
-    @Test func highestShowsATagOnlyWhenThereIsAChoice() {
-        let both = MenuBarText.make(choice: .highest, picked: tool(.codex, week: 63.2), connectedTools: 2)
-        #expect(both.title == " 64% X")
+    /// 0.2.2: no C or X tag. The popover's top row is the menu bar's tool (0.2.1), and the
+    /// tooltip names it, so a lone letter only confused people.
+    @Test func noToolTagEvenWithTwoTools() {
+        let both = MenuBarText.make(choice: .highest, picked: tool(.codex, week: 63.2))
+        #expect(both.title == " 64%")
         #expect(both.tooltip == "Wiggleroom: Codex, This week 64% used")
-        let one = MenuBarText.make(choice: .highest, picked: tool(.claudeCode, week: 41), connectedTools: 1)
-        #expect(one.title == " 41%")   // same as 0.1 when only Claude Code is connected
-        #expect(MenuBarText.make(choice: .claudeCode, picked: tool(.claudeCode, week: 41), connectedTools: 2).title == " 41%")
+        let claude = MenuBarText.make(choice: .highest, picked: tool(.claudeCode, week: 41))
+        #expect(claude.title == " 41%")
+        #expect(claude.tooltip == "Wiggleroom: Claude Code, This week 41% used")
+        #expect(MenuBarText.make(choice: .highest, picked: tool(.claudeCode, week: 41)).title == " 41%")
+        #expect(MenuBarText.make(choice: .codex, picked: tool(.codex, week: 41)).title == " 41%")
     }
 
     @Test func noNumbersYet() {
-        #expect(MenuBarText.make(choice: .codex, picked: nil, connectedTools: 2) == ("", "Wiggleroom: no numbers from Codex yet"))
-        #expect(MenuBarText.make(choice: .highest, picked: nil, connectedTools: 0) == ("", "Wiggleroom: no numbers yet"))
+        #expect(MenuBarText.make(choice: .codex, picked: nil) == ("", "Wiggleroom: no numbers from Codex yet"))
+        #expect(MenuBarText.make(choice: .highest, picked: nil) == ("", "Wiggleroom: no numbers yet"))
     }
 }

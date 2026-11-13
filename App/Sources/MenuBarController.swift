@@ -47,7 +47,7 @@ final class MenuBarController {
         let tools = model.toolDisplays
         let picked = model.menuBarChoice.pick(from: tools)
         let row = picked?.display.primary
-        let text = MenuBarText.make(choice: model.menuBarChoice, picked: picked, connectedTools: model.connectedTools.count)
+        let text = MenuBarText.make(choice: model.menuBarChoice, picked: picked)
         button.image = Self.gauge(fraction: (row?.percent == nil ? 0 : row!.usedPercent) / 100)
         button.title = text.title
         button.toolTip = text.tooltip

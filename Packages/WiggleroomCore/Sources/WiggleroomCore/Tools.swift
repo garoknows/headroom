@@ -13,14 +13,6 @@ public enum Tool: String, Codable, CaseIterable, Sendable {
         case .codex: "Codex"
         }
     }
-
-    /// One letter for the menu bar when it shows "Highest of my tools".
-    public var tag: String {
-        switch self {
-        case .claudeCode: "C"
-        case .codex: "X"
-        }
-    }
 }
 
 /// One tool's numbers. `usage` is the same snapshot shape 0.1 used, so every rule (merging,
@@ -178,15 +170,14 @@ public enum MenuBarChoice: String, CaseIterable, Codable, Sendable {
 
 /// The menu bar item's text and tooltip.
 public enum MenuBarText {
-    /// With "Highest of my tools" and more than one tool connected, a one-letter tag (C or X)
-    /// says which tool the percent belongs to; the tooltip always names it.
-    public static func make(choice: MenuBarChoice, picked: ToolDisplay?, connectedTools: Int) -> (title: String, tooltip: String) {
+    /// Just the percent: the tooltip names the tool, and the popover's top row is the same tool
+    /// (0.2.1). 0.2.0 and 0.2.1 added a C or X tag, removed in 0.2.2 because a lone letter confused people.
+    public static func make(choice: MenuBarChoice, picked: ToolDisplay?) -> (title: String, tooltip: String) {
         guard let picked, let row = picked.display.primary, let pct = row.percent else {
             let which = choice == .highest ? "" : " from \(choice.title)"
             return ("", "Wiggleroom: no numbers\(which) yet")
         }
-        let tag = choice == .highest && connectedTools > 1 ? " \(picked.tool.tag)" : ""
-        return (" \(pct)%\(tag)", "Wiggleroom: \(picked.tool.displayName), \(row.title) \(row.percentText)")
+        return (" \(pct)%", "Wiggleroom: \(picked.tool.displayName), \(row.title) \(row.percentText)")
     }
 }
 
@@ -270,5 +261,40 @@ public enum WatcherSummary {
             out.append(WatcherLine(text: "Watching \(names)", ok: true))
         }
         return out
+    }
+}
+
+// MARK: 0.2.2: the popover's "As of" lines
+
+/// Which "As of" lines the compact popover shows.
+public struct AsOfPlan: Equatable, Sendable {
+    /// The shared line's numbers (time and freshness), or nil when there are no tools.
+    public var shared: UsageDisplay?
+    /// Tools that get a line of their own under their rows.
+    public var separate: Set<Tool>
+
+    public init(shared: UsageDisplay?, separate: Set<Tool>) {
+        self.shared = shared
+        self.separate = separate
+    }
+}
+
+extension ToolDisplay {
+    /// The compact popover's "As of" lines (DECISIONS D180). The shared line covers the tools
+    /// as fresh as the freshest one, and shows the oldest time among them, so it is never fresher
+    /// than any number it covers. A tool at a worse level (amber after 30 minutes, dimmed after
+    /// 6 hours) gets its own line, so a tool nobody has used lately can't turn the shared line amber.
+    public static func asOfPlan(_ tools: [ToolDisplay]) -> AsOfPlan {
+        func level(_ f: Freshness) -> Int {
+            switch f {
+            case .fresh: 0
+            case .stale: 1
+            case .veryStale: 2
+            }
+        }
+        guard let best = tools.map({ level($0.display.freshness) }).min() else { return AsOfPlan(shared: nil, separate: []) }
+        let covered = tools.filter { level($0.display.freshness) == best }
+        let separate = Set(tools.filter { level($0.display.freshness) > best }.map(\.tool))
+        return AsOfPlan(shared: covered.min { $0.display.updatedAt < $1.display.updatedAt }?.display, separate: separate)
     }
 }

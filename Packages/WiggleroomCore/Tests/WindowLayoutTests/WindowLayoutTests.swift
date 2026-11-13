@@ -60,6 +60,20 @@ import WiggleroomWindows
         }
     }
 
+    /// 0.2.2: Settings' Status section shows the same watcher lines as the popover's footer.
+    @Test func settingsStatusShowsEveryWatcherLine() {
+        let model = PreviewWindowModel(connection: .notConnected(hasOtherStatusLine: false), display: PreviewStates.bothLimits)
+        model.codexConnected = true
+        model.codexDisplay = PreviewStates.codex
+        model.codexWatching = false
+        #expect(model.watcherLines.count == 2)
+        let r = WindowHarness.window(SettingsView(model: model, openSetup: {}), dark: false)
+        for i in model.watcherLines.indices {
+            #expect(r.frames["settings: watcher line \(i)"] != nil, "watcher line \(i) (\(model.watcherLines[i].text)) isn't in Settings")
+        }
+        #expect(r.frames["settings: watcher line \(model.watcherLines.count)"] == nil)
+    }
+
     /// The popover is as tall as its content: one row and no gap for a weekly-only plan. With two
     /// tools it is compact (0.2.1): each tool's weekly row, plus any other limit at 75% or more.
     @Test(arguments: schemes)
@@ -72,10 +86,14 @@ import WiggleroomWindows
         let twoWarning = PreviewWindowModel(display: PreviewStates.bothLimits)
         twoWarning.codexConnected = true
         twoWarning.codexDisplay = PreviewStates.codexWarning
+        // 0.2.2: Codex's numbers are over an hour old, so Codex gets its own "As of" line.
+        let codexOld = PreviewWindowModel(display: PreviewStates.bothLimits)
+        codexOld.codexConnected = true
+        codexOld.codexDisplay = PreviewStates.codexOld
         let codexWaiting = PreviewWindowModel(display: PreviewStates.weeklyOnly)
         codexWaiting.codexConnected = true
         var heights: [String: CGFloat] = [:]
-        for (name, model) in [("weekly-only", weekly), ("both", both), ("two-tools", two), ("two-tools-warning", twoWarning), ("codex-waiting", codexWaiting)] {
+        for (name, model) in [("weekly-only", weekly), ("both", both), ("two-tools", two), ("two-tools-warning", twoWarning), ("two-tools-codex-old", codexOld), ("codex-waiting", codexWaiting)] {
             let r = WindowHarness.popover(PopoverView(model: model, openSettings: {}), dark: dark)
             #expect(WindowHarness.overflows(r).isEmpty, "popover (\(name)): \(WindowHarness.overflows(r))")
             #expect(r.contentSize.width == WindowSizes.popoverWidth)
@@ -96,6 +114,10 @@ import WiggleroomWindows
             #expect(t <= b, "the two-tool popover should be compact: \(t) tall, one tool with both limits is \(b)")
             // A 5-hour limit at 75% or more adds its row.
             #expect(w > t, "a 5-hour limit at 75% or more should add a row: \(w), \(t)")
+            // An old tool adds its own small "As of" line, much less than a row.
+            if let o = heights["two-tools-codex-old"] {
+                #expect(o > t + 8 && o < w, "an old tool should add one small line: \(o), two tools \(t), with a row \(w)")
+            }
         }
     }
 }

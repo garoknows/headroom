@@ -67,8 +67,12 @@ public struct SettingsView<Model: WindowModel>: View {
                 }
 
                 SettingsSection("Status") {
-                    Label(model.watcherText, systemImage: model.isWatching ? "checkmark.circle" : "exclamationmark.triangle")
-                        .wrapping()
+                    // The same watcher lines as the popover's footer (0.2.2).
+                    ForEach(Array(model.watcherLines.enumerated()), id: \.offset) { i, line in
+                        Label(line.text, systemImage: line.ok ? "checkmark.circle" : "exclamationmark.triangle")
+                            .wrapping()
+                            .layoutProbe("settings: watcher line \(i)")
+                    }
                     Text(model.display.map { "Claude Code: \($0.asOfText)" } ?? "No numbers from Claude Code yet. They arrive with your next Claude Code reply.")
                         .foregroundStyle(.secondary)
                         .wrapping()

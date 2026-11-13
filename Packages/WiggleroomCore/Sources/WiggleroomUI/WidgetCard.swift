@@ -103,18 +103,44 @@ struct AllToolsRows: View {
     var popover = false
 
     var body: some View {
-        // The oldest "as of" of the tools shown, so the line never looks fresher than the data.
+        if popover { popoverBody } else { widgetBody }
+    }
+
+    /// The widget: one line with the oldest "as of" of the tools shown, so it never looks fresher
+    /// than the data.
+    private var widgetBody: some View {
         let oldest = tools.min { $0.display.updatedAt < $1.display.updatedAt }?.display
-        let entries = (popover ? tools : Array(tools.prefix(3))).flatMap { t in
-            (popover ? t.compactRows : t.display.primary.map { [$0] } ?? []).map { Entry(tool: t, row: $0) }
-        }
-        VStack(alignment: .leading, spacing: 10) {
+        let entries = tools.prefix(3).flatMap { t in (t.display.primary.map { [$0] } ?? []).map { Entry(tool: t, row: $0) } }
+        return VStack(alignment: .leading, spacing: 10) {
             ForEach(entries) { e in
                 LimitRowView(row: Self.titled(e.row, e.tool), palette: palette, live: live,
                              dimmed: e.tool.display.freshness == .veryStale, window: e.row.title)
             }
-            if !popover { Spacer(minLength: 0) }
+            Spacer(minLength: 0)
             if let oldest { AsOfLine(display: oldest, palette: palette) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The popover (0.2.2): a tool whose numbers are older than the freshest tool's level gets its
+    /// own "Codex · As of 8:21 PM" line under its rows; the shared line covers the rest (D180).
+    private var popoverBody: some View {
+        let plan = ToolDisplay.asOfPlan(tools)
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(tools) { t in
+                VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(t.compactRows) { row in
+                            LimitRowView(row: Self.titled(row, t), palette: palette, live: live,
+                                         dimmed: t.display.freshness == .veryStale, window: row.title)
+                        }
+                    }
+                    if plan.separate.contains(t.tool) {
+                        AsOfLine(display: t.display, palette: palette, toolName: t.tool.displayName)
+                    }
+                }
+            }
+            if let shared = plan.shared { AsOfLine(display: shared, palette: palette) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

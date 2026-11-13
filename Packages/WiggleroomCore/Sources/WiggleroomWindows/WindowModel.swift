@@ -16,9 +16,7 @@ public protocol WindowModel: ObservableObject {
     var canShareWithWidget: Bool { get }
     var display: UsageDisplay? { get }
     var cardContent: CardContent { get }
-    var isWatching: Bool { get }
-    var watcherText: String { get }
-    /// The popover's footer: every connected tool's watcher (0.2.1).
+    /// Every connected tool's watcher: the popover's footer (0.2.1) and Settings' Status (0.2.2).
     var watcherLines: [WatcherLine] { get }
     var notificationsAllowed: Bool? { get }
     var launchAtLogin: Bool { get }

@@ -336,15 +336,6 @@ final class AppModel: WindowModel {
 
     // MARK: Status text
 
-    var watcherText: String {
-        switch watcherState {
-        case .starting: "Starting…"
-        case .watching: "Watching for new numbers from Claude Code"
-        case .problem(let why): "Not watching: \(why)"
-        }
-    }
-
-    var isWatching: Bool { watcherState == .watching }
 
     /// The popover's footer: one line for the watched tools, one per tool that isn't watched.
     var watcherLines: [WatcherLine] {
