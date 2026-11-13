@@ -2,7 +2,7 @@
 # scripts/update-cask.sh fills in the version and sha256 from a release; copy the result to the tap.
 cask "wiggleroom" do
   version "0.2.3"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "1513127104715dcd31044345a50cd0ee4d3eca89331cacf32a04c0f3d3d27b21"
 
   url "https://github.com/garoknows/wiggleroom/releases/download/v#{version}/Wiggleroom-#{version}.dmg"
   name "Wiggleroom"
